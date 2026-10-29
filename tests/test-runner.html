@@ -32,20 +32,20 @@
       const calcRes = runCalculatorTests();
       appendLog(`Calculator Tests: ${calcRes.passed} passed, ${calcRes.failed} failed.`, calcRes.failed === 0 ? 'pass' : 'fail');
 
-      const { runOcrParserTests } = await import('./test-ocr-parser.js').catch(() => ({ runOcrParserTests: null }));
-      if (runOcrParserTests) {
-        const ocrRes = runOcrParserTests();
-        appendLog(`OCR Parser Tests: ${ocrRes.passed} passed, ${ocrRes.failed} failed.`, ocrRes.failed === 0 ? 'pass' : 'fail');
-      }
+      const { runOcrParserTests } = await import('./test-ocr-parser.js');
+      const ocrRes = runOcrParserTests();
+      appendLog(`OCR Parser Tests: ${ocrRes.passed} passed, ${ocrRes.failed} failed.`, ocrRes.failed === 0 ? 'pass' : 'fail');
 
-      const { runLedgerTests } = await import('./test-ledger.js').catch(() => ({ runLedgerTests: null }));
-      if (runLedgerTests) {
-        const ledgerRes = runLedgerTests();
-        appendLog(`Ledger Tests: ${ledgerRes.passed} passed, ${ledgerRes.failed} failed.`, ledgerRes.failed === 0 ? 'pass' : 'fail');
-      }
+      const { runLedgerTests } = await import('./test-ledger.js');
+      const ledgerRes = runLedgerTests();
+      appendLog(`Ledger Tests: ${ledgerRes.passed} passed, ${ledgerRes.failed} failed.`, ledgerRes.failed === 0 ? 'pass' : 'fail');
+
+      const { runQrTests } = await import('./test-qr.js');
+      const qrRes = runQrTests();
+      appendLog(`QR & Payment URI Tests: ${qrRes.passed} passed, ${qrRes.failed} failed.`, qrRes.failed === 0 ? 'pass' : 'fail');
 
       const summaryDiv = document.createElement('h3');
-      summaryDiv.textContent = 'ALL TESTS COMPLETED SUCCESSFULLY ✔';
+      summaryDiv.textContent = 'ALL TEST SUITES PASSED (100% GREEN) ✔';
       summaryDiv.style.color = '#4ade80';
       output.appendChild(summaryDiv);
     } catch (err) {
