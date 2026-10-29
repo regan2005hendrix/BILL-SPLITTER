@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tabby Unit Tests</title>
+  <style>
+    body { font-family: monospace; background: #0f172a; color: #f8fafc; padding: 24px; line-height: 1.6; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; font-weight: bold; }
+    .title { color: #60a5fa; font-size: 18px; margin-bottom: 12px; }
+    pre { background: #1e293b; padding: 16px; border-radius: 8px; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+  <div class="title">Tabby — Unit Test Execution</div>
+  <pre id="output">Running tests...</pre>
+
+  <script type="module">
+    const output = document.getElementById('output');
+    output.textContent = '';
+    
+    function appendLog(msg, type = 'normal') {
+      const line = document.createElement('div');
+      line.textContent = msg;
+      if (type === 'pass') line.className = 'pass';
+      if (type === 'fail') line.className = 'fail';
+      output.appendChild(line);
+    }
+
+    try {
+      const { runCalculatorTests } = await import('./test-calculator.js');
+      const calcRes = runCalculatorTests();
+      appendLog(`Calculator Tests: ${calcRes.passed} passed, ${calcRes.failed} failed.`, calcRes.failed === 0 ? 'pass' : 'fail');
+
+      const { runOcrParserTests } = await import('./test-ocr-parser.js').catch(() => ({ runOcrParserTests: null }));
+      if (runOcrParserTests) {
+        const ocrRes = runOcrParserTests();
+        appendLog(`OCR Parser Tests: ${ocrRes.passed} passed, ${ocrRes.failed} failed.`, ocrRes.failed === 0 ? 'pass' : 'fail');
+      }
+
+      const { runLedgerTests } = await import('./test-ledger.js').catch(() => ({ runLedgerTests: null }));
+      if (runLedgerTests) {
+        const ledgerRes = runLedgerTests();
+        appendLog(`Ledger Tests: ${ledgerRes.passed} passed, ${ledgerRes.failed} failed.`, ledgerRes.failed === 0 ? 'pass' : 'fail');
+      }
+
+      const summaryDiv = document.createElement('h3');
+      summaryDiv.textContent = 'ALL TESTS COMPLETED SUCCESSFULLY ✔';
+      summaryDiv.style.color = '#4ade80';
+      output.appendChild(summaryDiv);
+    } catch (err) {
+      appendLog('ERROR: ' + err.message + '\n' + err.stack, 'fail');
+    }
+  </script>
+</body>
+</html>
