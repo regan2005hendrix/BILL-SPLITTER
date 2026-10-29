@@ -168,3 +168,4 @@ export async function processReceiptImage(imageFile, onProgress = () => {}) {
 
   return result.data?.text || '';
 }
+

@@ -84,20 +84,39 @@ export function calculateItemizedSplit({
     const itemPrice = Math.max(0, parseFloat(item.price) || 0);
     rawSubtotal += itemPrice;
 
-    // Filter sharedBy to members who exist in safePeople
-    const sharedBy = (item.sharedBy && item.sharedBy.length > 0)
-      ? item.sharedBy.filter(p => safePeople.includes(p))
-      : safePeople;
+    // Parse sharedBy which can contain string names or objects { person, weight }
+    let beneficiaries = [];
+    if (item.sharedBy && item.sharedBy.length > 0) {
+      item.sharedBy.forEach(entry => {
+        if (typeof entry === 'string') {
+          if (safePeople.includes(entry)) {
+            beneficiaries.push({ person: entry, weight: 1 });
+          }
+        } else if (entry && entry.person && safePeople.includes(entry.person)) {
+          beneficiaries.push({
+            person: entry.person,
+            weight: Math.max(0.01, parseFloat(entry.weight) || 1)
+          });
+        }
+      });
+    }
 
-    const beneficiaries = sharedBy.length > 0 ? sharedBy : safePeople;
-    const sharePrice = itemPrice / beneficiaries.length;
+    if (beneficiaries.length === 0) {
+      beneficiaries = safePeople.map(p => ({ person: p, weight: 1 }));
+    }
 
-    beneficiaries.forEach(person => {
-      personItemsMap[person] = (personItemsMap[person] || 0) + sharePrice;
-      const desc = beneficiaries.length > 1
-        ? `${item.name || 'Item'} (1/${beneficiaries.length})`
-        : (item.name || 'Item');
-      personItemNamesMap[person].push(desc);
+    const totalItemWeight = beneficiaries.reduce((sum, b) => sum + b.weight, 0);
+
+    beneficiaries.forEach(b => {
+      const shareFraction = totalItemWeight > 0 ? (b.weight / totalItemWeight) : (1 / beneficiaries.length);
+      const sharePrice = itemPrice * shareFraction;
+
+      personItemsMap[b.person] = (personItemsMap[b.person] || 0) + sharePrice;
+      const weightLabel = b.weight !== 1
+        ? ` (${b.weight} shares)`
+        : (beneficiaries.length > 1 ? ` (1/${beneficiaries.length})` : '');
+      const desc = `${item.name || 'Item'}${weightLabel}`;
+      personItemNamesMap[b.person].push(desc);
     });
   });
 
@@ -188,3 +207,4 @@ export function formatWhatsAppSummary({
 
   return lines.join('\n');
 }
+

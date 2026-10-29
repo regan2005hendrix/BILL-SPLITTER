@@ -181,24 +181,33 @@ export function resetTripExpenses(tripId) {
 /**
  * Bridge: Exports a meal calculation from Quick Split directly into Group Ledger
  */
-export function exportQuickSplitToTrip(tripId, quickSplitResult, mealTitle = 'Group Dinner') {
+export function exportQuickSplitToTrip(tripId, quickSplitResult, mealTitle = 'Group Dinner', payerName = '') {
   if (!quickSplitResult || !quickSplitResult.total) return null;
 
   const trips = getAllTrips();
   const trip = trips.find(t => t.id === tripId);
   if (!trip) return null;
 
+  let membersAdded = false;
   // Add any new names from quick split into trip members
   if (quickSplitResult.breakdown) {
     quickSplitResult.breakdown.forEach(b => {
       if (!trip.members.some(m => m.name.toLowerCase() === b.person.toLowerCase())) {
         trip.members.push({ name: b.person, handle: '' });
+        membersAdded = true;
       }
     });
   }
 
-  // Record meal as an expense
-  const payer = trip.members[0]?.name || 'Me';
+  if (membersAdded) {
+    saveAllTrips(trips);
+  }
+
+  // Record meal as an expense with the selected payer
+  const validPayer = payerName && trip.members.some(m => m.name.toLowerCase() === payerName.toLowerCase())
+    ? payerName
+    : (trip.members[0]?.name || 'Me');
+
   const participants = quickSplitResult.breakdown
     ? quickSplitResult.breakdown.map(b => b.person)
     : trip.members.map(m => m.name);
@@ -206,7 +215,7 @@ export function exportQuickSplitToTrip(tripId, quickSplitResult, mealTitle = 'Gr
   return addExpenseToTrip(tripId, {
     title: mealTitle,
     amount: quickSplitResult.total,
-    paidBy: payer,
+    paidBy: validPayer,
     splitBetween: participants
   });
 }
@@ -258,6 +267,15 @@ export function calculateNetBalances(trip) {
   Object.keys(balances).forEach(person => {
     balances[person] = round2(balances[person]);
   });
+
+  // Re-center any residual penny from odd splits onto the member with the largest absolute balance
+  const residual = round2(Object.values(balances).reduce((acc, b) => acc + b, 0));
+  if (Math.abs(residual) > 0 && Math.abs(residual) < 0.1) {
+    const largestMember = Object.keys(balances).reduce((max, k) =>
+      Math.abs(balances[k]) > Math.abs(balances[max]) ? k : max
+    );
+    balances[largestMember] = round2(balances[largestMember] - residual);
+  }
 
   return balances;
 }
@@ -358,3 +376,4 @@ export function formatTripSummary(trip) {
 
   return lines.join('\n');
 }
+

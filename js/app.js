@@ -37,6 +37,20 @@ import {
 } from './qr.js';
 
 /* ==========================================================================
+   Security: HTML Sanitization Utility
+   ========================================================================== */
+
+export function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ==========================================================================
    State Management
    ========================================================================== */
 
@@ -221,6 +235,13 @@ function setupModalClosers() {
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) backdrop.classList.remove('open');
     });
+  });
+
+  // WAI-ARIA Modal Accessibility: Dismiss on Escape key
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+    }
   });
 }
 
@@ -464,7 +485,7 @@ function renderQuickSplit() {
     chip.style.alignItems = 'center';
     chip.style.gap = '6px';
     chip.innerHTML = `
-      <span>${person}</span>
+      <span>${escapeHtml(person)}</span>
       <span style="cursor: pointer; opacity: 0.6; font-size: 11px;" title="Remove person">✕</span>
     `;
     chip.querySelector('span:last-child').addEventListener('click', (e) => {
@@ -501,11 +522,11 @@ function renderQuickSplit() {
       const memberChipsHtml = quickState.people.map(person => {
         const isShared = item.sharedBy.includes(person);
         const activeClass = isShared ? 'active' : '';
-        return `<button type="button" class="chip-btn ${activeClass}" style="padding: 2px 7px; font-size: 11px;" data-person="${person}">${person}</button>`;
+        return `<button type="button" class="chip-btn ${activeClass}" style="padding: 2px 7px; font-size: 11px;" data-person="${escapeHtml(person)}">${escapeHtml(person)}</button>`;
       }).join(' ');
 
       tr.innerHTML = `
-        <td style="font-weight: 500;">${item.name}</td>
+        <td style="font-weight: 500;">${escapeHtml(item.name)}</td>
         <td class="mono">${cur}${item.price.toFixed(2)}</td>
         <td>
           <div style="display: flex; gap: 4px; flex-wrap: wrap;">
@@ -558,11 +579,11 @@ function renderQuickSplit() {
       card.className = 'person-share-card';
       card.innerHTML = `
         <div class="person-share-header">
-          <span class="person-name">${p.person}</span>
+          <span class="person-name">${escapeHtml(p.person)}</span>
           <span class="person-total mono">${cur}${p.total.toFixed(2)}</span>
         </div>
         <div class="person-items-list">
-          <div>${p.itemsSummary}</div>
+          <div>${escapeHtml(p.itemsSummary)}</div>
           <div style="margin-top: 4px; opacity: 0.8;">Items: ${cur}${p.itemsTotal.toFixed(2)} | Tax/Tip share: ${cur}${(p.tax + p.tip).toFixed(2)}</div>
         </div>
       `;
@@ -622,7 +643,7 @@ function exportMealToActiveTrip() {
     return;
   }
 
-  exportQuickSplitToTrip(trip.id, calc, 'Dinner at Osteria');
+  exportQuickSplitToTrip(trip.id, calc, 'Dinner at Osteria', quickState.payerName);
   showToast(`Exported ${quickState.currency}${calc.total.toFixed(2)} to trip "${trip.name}"!`);
 }
 
@@ -725,14 +746,17 @@ function renderOcrResults() {
   ocrDetectedItems.forEach((item, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="input" type="text" value="${item.name}" style="padding: 4px 6px;"></td>
-      <td><input class="input mono" type="number" step="0.01" value="${item.price.toFixed(2)}" style="padding: 4px 6px; width: 80px;"></td>
+      <td><input class="input" type="text" style="padding: 4px 6px;"></td>
+      <td><input class="input mono" type="number" step="0.01" style="padding: 4px 6px; width: 80px;"></td>
       <td style="text-align: right;"><button class="key key--sm key--danger" type="button" style="padding: 2px 6px;">✕</button></td>
     `;
 
-    // Keep state in sync with inline edits
+    // Keep state in sync with inline edits safely
     const nameInput = tr.querySelector('input[type="text"]');
     const priceInput = tr.querySelector('input[type="number"]');
+
+    nameInput.value = item.name;
+    priceInput.value = item.price.toFixed(2);
 
     nameInput.addEventListener('input', (e) => { item.name = e.target.value; });
     priceInput.addEventListener('input', (e) => { item.price = parseFloat(e.target.value) || 0; });
@@ -928,8 +952,8 @@ function renderGroupLedger() {
     chip.style.alignItems = 'center';
     chip.style.gap = '6px';
     chip.innerHTML = `
-      <span>${m.name}</span>
-      ${m.handle ? `<span class="mono" style="font-size: 10px; opacity: 0.7;">(${m.handle})</span>` : ''}
+      <span>${escapeHtml(m.name)}</span>
+      ${m.handle ? `<span class="mono" style="font-size: 10px; opacity: 0.7;">(${escapeHtml(m.handle)})</span>` : ''}
     `;
     tripMembersList.appendChild(chip);
   });
@@ -949,12 +973,12 @@ function renderGroupLedger() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <div style="font-weight: 500;">${exp.title}</div>
-          <div style="font-size: 11px; color: var(--color-muted);">${exp.date || ''}</div>
+          <div style="font-weight: 500;">${escapeHtml(exp.title)}</div>
+          <div style="font-size: 11px; color: var(--color-muted);">${escapeHtml(exp.date || '')}</div>
         </td>
         <td class="mono" style="font-weight: 600;">${cur}${parseFloat(exp.amount).toFixed(2)}</td>
-        <td>${exp.paidBy}</td>
-        <td style="font-size: 12px; color: var(--color-ink-2);">${(exp.splitBetween || []).join(', ')}</td>
+        <td>${escapeHtml(exp.paidBy)}</td>
+        <td style="font-size: 12px; color: var(--color-ink-2);">${(exp.splitBetween || []).map(escapeHtml).join(', ')}</td>
         <td style="text-align: right;">
           <button class="key key--sm key--danger" type="button" style="padding: 2px 6px; min-height: 24px;" title="Delete expense">✕</button>
         </td>
@@ -990,7 +1014,7 @@ function renderGroupLedger() {
     row.style.borderBottom = 'var(--rule-hair) solid var(--color-rule)';
     row.style.fontSize = 'var(--text-sm)';
     row.innerHTML = `
-      <span>${name}</span>
+      <span>${escapeHtml(name)}</span>
       <span class="mono" style="color: ${color}; font-weight: 600;">${sign}${cur}${bal.toFixed(2)}</span>
     `;
     tripBalancesList.appendChild(row);
@@ -1017,10 +1041,10 @@ function renderGroupLedger() {
       card.innerHTML = `
         <div>
           <div style="font-weight: 600; font-size: var(--text-sm);">
-            ${s.from} ➔ ${s.to}
+            ${escapeHtml(s.from)} ➔ ${escapeHtml(s.to)}
           </div>
           <div style="font-size: 11px; color: var(--color-muted);">
-            Owes ${cur}${s.amount.toFixed(2)} ${s.handle ? `• ${s.handle}` : ''}
+            Owes ${cur}${s.amount.toFixed(2)} ${s.handle ? `• ${escapeHtml(s.handle)}` : ''}
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: var(--space-xs);">
@@ -1120,3 +1144,4 @@ document.addEventListener('DOMContentLoaded', () => {
   initOcrAndPaste();
   initGroupLedger();
 });
+

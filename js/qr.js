@@ -36,7 +36,18 @@ export function generatePaymentURI({
     };
   }
 
-  // 2. UPI Handle (contains '@' with name and bank handle, e.g. user@bank)
+  // 2. PayPal Handle (e.g. paypal.me/handle or paypal:handle)
+  if (cleanHandle.toLowerCase().includes('paypal.me/') || cleanHandle.toLowerCase().startsWith('paypal:')) {
+    const user = cleanHandle.replace(/^https?:\/\/paypal\.me\//i, '').replace(/^paypal\.me\//i, '').replace(/^paypal:/i, '');
+    const uri = `https://paypal.me/${encodeURIComponent(user)}/${safeAmount}`;
+    return {
+      uri,
+      type: 'paypal',
+      label: `PayPal (${user})`
+    };
+  }
+
+  // 3. UPI Handle (contains '@' with name and bank handle, e.g. user@bank)
   if (cleanHandle.includes('@') && !cleanHandle.startsWith('http')) {
     const cu = currency === '₹' ? 'INR' : 'INR';
     const uri = `upi://pay?pa=${encodeURIComponent(cleanHandle)}&pn=${encodeURIComponent(name)}&am=${safeAmount}&cu=${cu}&tn=${encodeURIComponent(safeNote)}`;
@@ -108,11 +119,27 @@ export function renderPaymentQRCode(container, paymentOptions) {
   fallbackDiv.style.padding = '16px';
   fallbackDiv.style.textAlign = 'center';
   fallbackDiv.style.color = 'var(--color-ink)';
-  fallbackDiv.innerHTML = `
-    <div style="font-size: 36px; margin-bottom: 8px;">📲</div>
-    <div style="font-weight: 600; margin-bottom: 4px;">${payment.label}</div>
-    <div class="mono" style="font-size: 14px; word-break: break-all; color: var(--color-muted);">${payment.uri}</div>
-  `;
+  
+  const icon = document.createElement('div');
+  icon.style.fontSize = '36px';
+  icon.style.marginBottom = '8px';
+  icon.textContent = '📲';
+  
+  const labelDiv = document.createElement('div');
+  labelDiv.style.fontWeight = '600';
+  labelDiv.style.marginBottom = '4px';
+  labelDiv.textContent = payment.label;
+  
+  const uriDiv = document.createElement('div');
+  uriDiv.className = 'mono';
+  uriDiv.style.fontSize = '14px';
+  uriDiv.style.wordBreak = 'break-all';
+  uriDiv.style.color = 'var(--color-muted)';
+  uriDiv.textContent = payment.uri;
+  
+  fallbackDiv.appendChild(icon);
+  fallbackDiv.appendChild(labelDiv);
+  fallbackDiv.appendChild(uriDiv);
   container.appendChild(fallbackDiv);
   return payment;
 }

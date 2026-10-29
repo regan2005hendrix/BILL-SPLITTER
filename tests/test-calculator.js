@@ -151,5 +151,32 @@ export function runCalculatorTests() {
     assert(summary.includes('Bob*: $21.60') || summary.includes('Bob: $21.60'), 'Summary contains Bob amount');
   }
 
+  // Test 6: Unequal dish weights (e.g. 2 shares vs 1 share)
+  {
+    const itemsWeighted = [
+      {
+        id: '1',
+        name: 'Large Pizza',
+        price: 30.00,
+        sharedBy: [
+          { person: 'Alice', weight: 2 },
+          { person: 'Bob', weight: 1 }
+        ]
+      }
+    ];
+    const weightedRes = calculateItemizedSplit({
+      items: itemsWeighted,
+      people: ['Alice', 'Bob'],
+      tipPercent: 0,
+      taxPercent: 0,
+      discountValue: 0,
+      rounding: 'exact'
+    });
+    const aliceW = weightedRes.breakdown.find(p => p.person === 'Alice');
+    const bobW = weightedRes.breakdown.find(p => p.person === 'Bob');
+    assertClose(aliceW.total, 20.00, 'Alice pays $20 for 2 shares of pizza');
+    assertClose(bobW.total, 10.00, 'Bob pays $10 for 1 share of pizza');
+  }
+
   return { passed, failed };
 }

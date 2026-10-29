@@ -116,5 +116,19 @@ export function runLedgerTests() {
     assert(settlements.length <= 2, 'Settles within N-1 transactions');
   }
 
+  // Test 4: Penny residual re-centering to guarantee exact net zero balance
+  {
+    const tripOdd = {
+      members: [{ name: 'A' }, { name: 'B' }, { name: 'C' }],
+      expenses: [
+        { id: '1', title: 'Lunch', amount: 10.00, paidBy: 'A', splitBetween: ['A', 'B', 'C'] }
+      ]
+    };
+    const net = calculateNetBalances(tripOdd);
+    const sumNet = Math.round((Object.values(net).reduce((a, b) => a + b, 0)) * 100) / 100;
+    assert(sumNet === 0, `Net balances sum is strictly 0.00 (got ${sumNet})`);
+  }
+
   return { passed, failed };
 }
+

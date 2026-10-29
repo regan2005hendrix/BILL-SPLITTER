@@ -50,3 +50,4 @@ export function runQrTests() {
 
   return { passed, failed };
 }
+
