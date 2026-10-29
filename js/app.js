@@ -55,26 +55,32 @@ export function escapeHtml(str) {
    ========================================================================== */
 
 const quickState = {
-  currency: '$',
+  currency: '₹',
   splitStyle: 'itemized',
   people: ['Alice', 'Bob', 'Charlie'],
+  personUpis: {
+    'Alice': 'alice@okhdfcbank',
+    'Bob': 'bob@oksbi',
+    'Charlie': 'charlie@upi'
+  },
   items: [
-    { id: '1', name: 'Margherita Pizza', price: 16.50, sharedBy: ['Alice', 'Bob'] },
-    { id: '2', name: 'Truffle Pasta', price: 22.00, sharedBy: ['Charlie'] },
-    { id: '3', name: 'Craft Beer (2x)', price: 14.00, sharedBy: ['Alice', 'Bob'] },
-    { id: '4', name: 'Tiramisu', price: 8.50, sharedBy: ['Alice', 'Bob', 'Charlie'] }
+    { id: '1', name: 'Masala Dosa', price: 149.00, sharedBy: ['Alice', 'Bob'] },
+    { id: '2', name: 'Paneer Roll', price: 249.00, sharedBy: ['Charlie'] },
+    { id: '3', name: 'Cold Coffee (2x)', price: 180.00, sharedBy: ['Alice', 'Bob'] },
+    { id: '4', name: 'Gulab Jamun', price: 90.00, sharedBy: ['Alice', 'Bob', 'Charlie'] }
   ],
-  tipPercent: 15,
-  taxPercent: 8.0,
+  tipPercent: 10,
+  taxPercent: 5.0,
   discountValue: 0,
   rounding: 'exact',
-  payerName: '',
-  payerHandle: ''
+  payerName: 'Alice',
+  payerHandle: 'alice@okhdfcbank'
 };
 
 // Temp store for scanned OCR review items
 let ocrDetectedItems = [];
 let currentPaymentURI = '';
+let currentPayeeHandle = '';
 
 /* ==========================================================================
    DOM Elements
@@ -93,9 +99,10 @@ const splitStyleSelect = document.getElementById('split-style-select');
 const equalSplitControls = document.getElementById('equal-split-controls');
 const itemizedSplitControls = document.getElementById('itemized-split-controls');
 const equalSubtotalInput = document.getElementById('equal-subtotal');
-const equalPeopleCountInput = document.getElementById('equal-people-count');
+const peopleCountBadge = document.getElementById('people-count-badge');
 const quickPeopleChips = document.getElementById('quick-people-chips');
 const newPersonInput = document.getElementById('new-person-name');
+const newPersonUpiInput = document.getElementById('new-person-upi');
 const btnAddPerson = document.getElementById('btn-add-person');
 const dishesTbody = document.getElementById('dishes-tbody');
 const newDishNameInput = document.getElementById('new-dish-name');
@@ -123,6 +130,7 @@ const btnCopySummary = document.getElementById('btn-copy-summary');
 const btnShowBillQR = document.getElementById('btn-show-bill-qr');
 const btnLoadSampleBill = document.getElementById('btn-load-sample-bill');
 const btnExportToTrip = document.getElementById('btn-export-to-trip');
+const receiptCurrencyTag = document.getElementById('receipt-currency-tag');
 
 // OCR & Paste Modal Elements
 const btnOpenScanner = document.getElementById('btn-open-scanner');
@@ -133,6 +141,7 @@ const ocrProgressLabel = document.getElementById('ocr-progress-label');
 const ocrProgressBar = document.getElementById('ocr-progress-bar');
 const ocrResultsContainer = document.getElementById('ocr-results-container');
 const ocrTbody = document.getElementById('ocr-tbody');
+const btnOcrToggleAll = document.getElementById('btn-ocr-toggle-all');
 const btnImportOcrItems = document.getElementById('btn-import-ocr-items');
 const btnOpenPasteModal = document.getElementById('btn-open-paste-modal');
 const modalPaste = document.getElementById('modal-paste');
@@ -174,7 +183,10 @@ const newTripCurrencySelect = document.getElementById('new-trip-currency');
 const modalQr = document.getElementById('modal-qr');
 const qrCodeDisplay = document.getElementById('qr-code-display');
 const qrAmountDisplay = document.getElementById('qr-amount-display');
-const qrHandleDisplay = document.getElementById('qr-handle-display');
+const qrAvatarInitial = document.getElementById('qr-avatar-initial');
+const qrPayeeName = document.getElementById('qr-payee-name');
+const qrPayeeHandle = document.getElementById('qr-payee-handle');
+const btnOpenUpiIntent = document.getElementById('btn-open-upi-intent');
 const btnCopyPaymentLink = document.getElementById('btn-copy-payment-link');
 
 /* ==========================================================================
@@ -292,7 +304,6 @@ function initQuickSplit() {
   });
 
   equalSubtotalInput.addEventListener('input', () => renderQuickSplit());
-  equalPeopleCountInput.addEventListener('input', () => renderQuickSplit());
 
   taxPercentInput.addEventListener('input', (e) => {
     quickState.taxPercent = parseFloat(e.target.value) || 0;
@@ -307,10 +318,6 @@ function initQuickSplit() {
   roundingSelect.addEventListener('change', (e) => {
     quickState.rounding = e.target.value;
     renderQuickSplit();
-  });
-
-  quickPayerHandleInput.addEventListener('input', (e) => {
-    quickState.payerHandle = e.target.value.trim();
   });
 
   // Tip presets
@@ -338,6 +345,14 @@ function initQuickSplit() {
       addPersonToQuickSplit();
     }
   });
+  if (newPersonUpiInput) {
+    newPersonUpiInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addPersonToQuickSplit();
+      }
+    });
+  }
 
   // Add dish
   btnAddDish.addEventListener('click', addDishToQuickSplit);
@@ -363,12 +378,12 @@ function initQuickSplit() {
     });
   });
 
-  // Show Payment QR
+  // Show Payment QR for Total Bill
   btnShowBillQR.addEventListener('click', () => {
     const calculation = getQuickCalculation();
     openPaymentQRModal({
       name: quickState.payerName || 'Host',
-      handle: quickState.payerHandle || 'dinner@upi',
+      handle: quickState.payerHandle || quickState.personUpis[quickState.payerName] || '',
       amount: calculation.total,
       currency: quickState.currency,
       note: 'Dinner Bill Total'
@@ -386,12 +401,20 @@ function initQuickSplit() {
 
 function addPersonToQuickSplit() {
   const name = newPersonInput.value.trim();
+  const upi = newPersonUpiInput ? newPersonUpiInput.value.trim() : '';
   if (!name) return;
 
   if (!quickState.people.includes(name)) {
     quickState.people.push(name);
+    if (upi) {
+      quickState.personUpis[name] = upi;
+    }
     newPersonInput.value = '';
+    if (newPersonUpiInput) newPersonUpiInput.value = '';
     renderQuickSplit();
+    showToast(`Added ${name} to participants!`);
+  } else {
+    showToast(`${name} is already in the list.`);
   }
 }
 
@@ -401,9 +424,18 @@ function removePersonFromQuickSplit(name) {
     return;
   }
   quickState.people = quickState.people.filter(p => p !== name);
+  delete quickState.personUpis[name];
+  if (quickState.payerName === name) {
+    quickState.payerName = quickState.people[0] || '';
+    quickState.payerHandle = quickState.personUpis[quickState.payerName] || '';
+    quickPayerHandleInput.value = quickState.payerHandle;
+  }
   // Remove from items sharedBy
   quickState.items.forEach(item => {
     item.sharedBy = item.sharedBy.filter(p => p !== name);
+    if (item.sharedBy.length === 0) {
+      item.sharedBy = [...quickState.people];
+    }
   });
   renderQuickSplit();
 }
@@ -458,7 +490,7 @@ function getQuickCalculation() {
       tipPercent: quickState.tipPercent,
       taxPercent: quickState.taxPercent,
       discountValue: quickState.discountValue,
-      peopleCount: parseInt(equalPeopleCountInput.value, 10) || 1,
+      peopleCount: quickState.people.length || 1,
       rounding: quickState.rounding
     });
   } else {
@@ -476,43 +508,72 @@ function getQuickCalculation() {
 function renderQuickSplit() {
   const cur = quickState.currency;
 
-  // 1. Render People Chips
+  // Currency labels sync
+  document.querySelectorAll('.currency-symbol-label').forEach(el => { el.textContent = cur; });
+  if (receiptCurrencyTag) {
+    receiptCurrencyTag.textContent = `${cur} (${cur === '₹' ? 'INR' : 'Split'})`;
+  }
+
+  // 1. Render People Count Badge
+  if (peopleCountBadge) {
+    const count = quickState.people.length;
+    peopleCountBadge.textContent = `${count} ${count === 1 ? 'Person' : 'People'}`;
+  }
+
+  // 2. Render Avatar Chips Grid
   quickPeopleChips.innerHTML = '';
-  quickState.people.forEach(person => {
+  quickState.people.forEach((person, idx) => {
+    const upi = quickState.personUpis[person];
     const chip = document.createElement('div');
-    chip.className = 'chip-btn active';
-    chip.style.display = 'inline-flex';
-    chip.style.alignItems = 'center';
-    chip.style.gap = '6px';
+    chip.className = 'avatar-chip';
     chip.innerHTML = `
-      <span>${escapeHtml(person)}</span>
-      <span style="cursor: pointer; opacity: 0.6; font-size: 11px;" title="Remove person">✕</span>
+      <span class="avatar-circle avatar-${idx % 6}">${escapeHtml(person.charAt(0).toUpperCase())}</span>
+      <span class="avatar-chip-name">${escapeHtml(person)}</span>
+      ${upi ? `<span class="avatar-chip-upi mono">(${escapeHtml(upi)})</span>` : ''}
+      <button class="avatar-chip-remove" type="button" title="Remove ${escapeHtml(person)}">✕</button>
     `;
-    chip.querySelector('span:last-child').addEventListener('click', (e) => {
-      e.stopPropagation();
+    chip.querySelector('.avatar-chip-remove').addEventListener('click', () => {
       removePersonFromQuickSplit(person);
     });
     quickPeopleChips.appendChild(chip);
   });
 
-  // 2. Render Payer Selector
-  quickPayerSelect.innerHTML = '<option value="">I paid (Device Owner)</option>';
+  // 3. Render Payer Selector
+  quickPayerSelect.innerHTML = '';
   quickState.people.forEach(person => {
     const opt = document.createElement('option');
     opt.value = person;
-    opt.textContent = `${person} paid in full`;
+    opt.textContent = `${person} paid the bill`;
     if (quickState.payerName === person) opt.selected = true;
     quickPayerSelect.appendChild(opt);
   });
+
+  if (!quickState.people.includes(quickState.payerName)) {
+    quickState.payerName = quickState.people[0] || '';
+  }
+  quickPayerSelect.value = quickState.payerName;
+  quickState.payerHandle = quickState.personUpis[quickState.payerName] || quickState.payerHandle || '';
+  quickPayerHandleInput.value = quickState.payerHandle;
+
   quickPayerSelect.onchange = (e) => {
     quickState.payerName = e.target.value;
+    quickState.payerHandle = quickState.personUpis[quickState.payerName] || '';
+    quickPayerHandleInput.value = quickState.payerHandle;
+    renderQuickSplit();
   };
 
-  // 3. Render Dishes Table
+  quickPayerHandleInput.oninput = (e) => {
+    quickState.payerHandle = e.target.value.trim();
+    if (quickState.payerName) {
+      quickState.personUpis[quickState.payerName] = quickState.payerHandle;
+    }
+  };
+
+  // 4. Render Dishes Table (for Itemized Mode)
   dishesTbody.innerHTML = '';
   if (quickState.items.length === 0) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="4" style="text-align: center; color: var(--color-muted); padding: var(--space-md);">No dishes added. Add items or scan a receipt!</td>`;
+    tr.innerHTML = `<td colspan="4" style="text-align: center; color: var(--color-muted); padding: var(--space-md);">No dishes added yet. Add items above or click "Scan Bill"!</td>`;
     dishesTbody.appendChild(tr);
   } else {
     quickState.items.forEach(item => {
@@ -554,7 +615,7 @@ function renderQuickSplit() {
     });
   }
 
-  // 4. Compute and Render Summary
+  // 5. Compute and Render Summary
   const calc = getQuickCalculation();
 
   summarySubtotal.textContent = `${cur}${calc.subtotal.toFixed(2)}`;
@@ -571,68 +632,157 @@ function renderQuickSplit() {
   summaryTip.textContent = `${cur}${calc.tip.toFixed(2)}`;
   summaryTotal.textContent = `${cur}${calc.total.toFixed(2)}`;
 
-  // 5. Render Individual Person Breakdown Cards
+  // 6. Render Individual Person Breakdown Cards with Direct UPI Pay Buttons
   personBreakdownList.innerHTML = '';
-  if (calc.breakdown && calc.breakdown.length > 0) {
-    calc.breakdown.forEach(p => {
+  const collector = quickState.payerName || quickState.people[0] || 'Collector';
+  const collectorHandle = quickState.payerHandle || quickState.personUpis[collector] || '';
+
+  if (quickState.splitStyle === 'equal') {
+    const sharePerPerson = calc.perPerson;
+    quickState.people.forEach((person, idx) => {
+      const isCollector = (person === collector);
       const card = document.createElement('div');
-      card.className = 'person-share-card';
+      card.className = `person-share-card ${isCollector ? 'person-card-collector' : ''}`;
+      
       card.innerHTML = `
         <div class="person-share-header">
-          <span class="person-name">${escapeHtml(p.person)}</span>
-          <span class="person-total mono">${cur}${p.total.toFixed(2)}</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="avatar-circle avatar-${idx % 6}">${escapeHtml(person.charAt(0).toUpperCase())}</span>
+            <div>
+              <div class="person-name">${escapeHtml(person)}</div>
+              <div style="font-size: 11px; color: var(--color-muted);">
+                ${isCollector ? 'Paid in full for the table' : `Equal share (1/${quickState.people.length})`}
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div class="person-total mono">${cur}${sharePerPerson.toFixed(2)}</div>
+            ${isCollector ? '<span class="person-collector-badge">👑 Paid Full Bill (Collector)</span>' : ''}
+          </div>
         </div>
-        <div class="person-items-list">
-          <div>${escapeHtml(p.itemsSummary)}</div>
-          <div style="margin-top: 4px; opacity: 0.8;">Items: ${cur}${p.itemsTotal.toFixed(2)} | Tax/Tip share: ${cur}${(p.tax + p.tip).toFixed(2)}</div>
-        </div>
+        ${!isCollector ? `
+          <div class="person-share-card-actions">
+            <button class="btn-pay-direct" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
+              📲 Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
+            </button>
+            <span style="font-size: 11px; color: var(--color-muted);">Scan QR to deposit into ${escapeHtml(collector)}'s bank</span>
+          </div>
+        ` : `
+          <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
+            Collecting ${cur}${(calc.total - sharePerPerson).toFixed(2)} total from the other ${quickState.people.length - 1} ${quickState.people.length - 1 === 1 ? 'person' : 'people'}.
+          </div>
+        `}
       `;
+
+      if (!isCollector) {
+        card.querySelector('.btn-pay-direct').addEventListener('click', () => {
+          openPaymentQRModal({
+            name: collector,
+            handle: collectorHandle,
+            amount: sharePerPerson,
+            currency: cur,
+            note: `${person}'s equal share for bill`
+          });
+        });
+      }
+
       personBreakdownList.appendChild(card);
     });
-  } else if (calc.perPerson) {
-    const card = document.createElement('div');
-    card.className = 'person-share-card';
-    card.innerHTML = `
-      <div class="person-share-header">
-        <span class="person-name">Each Person (${calc.peopleCount} people)</span>
-        <span class="person-total mono">${cur}${calc.perPerson.toFixed(2)}</span>
-      </div>
-      <div class="person-items-list">Equal split of total bill including tip & tax.</div>
-    `;
-    personBreakdownList.appendChild(card);
+  } else {
+    // Itemized Split breakdown
+    if (calc.breakdown && calc.breakdown.length > 0) {
+      calc.breakdown.forEach((p, idx) => {
+        const isCollector = (p.person === collector);
+        const personIdx = quickState.people.indexOf(p.person);
+        const colorIdx = personIdx >= 0 ? personIdx % 6 : idx % 6;
+        const card = document.createElement('div');
+        card.className = `person-share-card ${isCollector ? 'person-card-collector' : ''}`;
+
+        card.innerHTML = `
+          <div class="person-share-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="avatar-circle avatar-${colorIdx}">${escapeHtml(p.person.charAt(0).toUpperCase())}</span>
+              <div>
+                <div class="person-name">${escapeHtml(p.person)}</div>
+                <div style="font-size: 11px; color: var(--color-muted);">${escapeHtml(p.itemsSummary || 'Dishes & drinks')}</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div class="person-total mono">${cur}${p.total.toFixed(2)}</div>
+              ${isCollector ? '<span class="person-collector-badge">👑 Paid Full Bill (Collector)</span>' : ''}
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
+            Dishes: ${cur}${p.itemsTotal.toFixed(2)} | Tax & Tip: ${cur}${(p.tax + p.tip).toFixed(2)}
+          </div>
+          ${!isCollector ? `
+            <div class="person-share-card-actions">
+              <button class="btn-pay-direct" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
+                📲 Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
+              </button>
+              <span style="font-size: 11px; color: var(--color-muted);">Scan QR to deposit into ${escapeHtml(collector)}'s bank</span>
+            </div>
+          ` : `
+            <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
+              Collecting ${cur}${(calc.total - p.total).toFixed(2)} total from other ${quickState.people.length - 1} ${quickState.people.length - 1 === 1 ? 'person' : 'people'}.
+            </div>
+          `}
+        `;
+
+        if (!isCollector) {
+          card.querySelector('.btn-pay-direct').addEventListener('click', () => {
+            openPaymentQRModal({
+              name: collector,
+              handle: collectorHandle,
+              amount: p.total,
+              currency: cur,
+              note: `${p.person}'s share for ${p.itemsSummary.slice(0, 30)}`
+            });
+          });
+        }
+
+        personBreakdownList.appendChild(card);
+      });
+    }
   }
 }
 
 function loadSampleDinner() {
-  quickState.currency = '$';
-  currencySelect.value = '$';
+  quickState.currency = '₹';
+  currencySelect.value = '₹';
   quickState.splitStyle = 'itemized';
   splitStyleSelect.value = 'itemized';
   equalSplitControls.style.display = 'none';
   itemizedSplitControls.style.display = 'block';
 
   quickState.people = ['Alice', 'Bob', 'Charlie', 'David'];
+  quickState.personUpis = {
+    'Alice': 'alice@okhdfcbank',
+    'Bob': 'bob@oksbi',
+    'Charlie': 'charlie@upi',
+    'David': 'david@paytm'
+  };
   quickState.items = [
-    { id: '1', name: 'Margherita Pizza', price: 18.00, sharedBy: ['Alice', 'Bob'] },
-    { id: '2', name: 'Truffle Tagliatelle', price: 24.00, sharedBy: ['Charlie'] },
-    { id: '3', name: 'Prime Ribeye Steak', price: 34.00, sharedBy: ['David'] },
-    { id: '4', name: 'Chianti Classico (Bottle)', price: 38.00, sharedBy: ['Alice', 'Bob', 'David'] },
-    { id: '5', name: 'Tiramisu Della Casa', price: 12.00, sharedBy: ['Alice', 'Bob', 'Charlie', 'David'] }
+    { id: '1', name: 'Butter Chicken', price: 380.00, sharedBy: ['Alice', 'Bob', 'David'] },
+    { id: '2', name: 'Paneer Tikka', price: 280.00, sharedBy: ['Charlie'] },
+    { id: '3', name: 'Garlic Naan (4x)', price: 240.00, sharedBy: ['Alice', 'Bob', 'Charlie', 'David'] },
+    { id: '4', name: 'Biryani Platter', price: 450.00, sharedBy: ['Alice', 'Bob', 'David'] },
+    { id: '5', name: 'Kulfi Falooda (4x)', price: 320.00, sharedBy: ['Alice', 'Bob', 'Charlie', 'David'] }
   ];
-  quickState.tipPercent = 18;
+  quickState.tipPercent = 10;
   tipPresetBtns.forEach(b => b.classList.remove('active'));
-  document.querySelector('#tip-presets .chip-btn[data-tip="18"]')?.classList.add('active');
+  document.querySelector('#tip-presets .chip-btn[data-tip="10"]')?.classList.add('active');
 
-  quickState.taxPercent = 8.5;
-  taxPercentInput.value = '8.5';
+  quickState.taxPercent = 5.0;
+  taxPercentInput.value = '5.0';
   quickState.discountValue = 0;
   discountInput.value = '0';
   quickState.payerName = 'Alice';
-  quickState.payerHandle = 'alice@upi';
-  quickPayerHandleInput.value = 'alice@upi';
+  quickState.payerHandle = 'alice@okhdfcbank';
+  quickPayerHandleInput.value = 'alice@okhdfcbank';
 
   renderQuickSplit();
-  showToast('Loaded sample Italian dinner bill!');
+  showToast('Loaded sample dinner with UPI IDs!');
 }
 
 function exportMealToActiveTrip() {
@@ -663,6 +813,16 @@ function initOcrAndPaste() {
     modalPaste.classList.add('open');
     rawReceiptTextarea.value = '';
   });
+
+  // Toggle all checkboxes in OCR results
+  if (btnOcrToggleAll) {
+    btnOcrToggleAll.addEventListener('click', () => {
+      const checkboxes = ocrTbody.querySelectorAll('.ocr-item-check');
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      checkboxes.forEach(cb => { cb.checked = !allChecked; });
+      btnOcrToggleAll.textContent = allChecked ? 'Select All' : 'Deselect All';
+    });
+  }
 
   // Handle OCR file input (Camera / File)
   ocrFileInput.addEventListener('change', async (e) => {
@@ -697,21 +857,31 @@ function initOcrAndPaste() {
 
   // Import detected OCR items into bill
   btnImportOcrItems.addEventListener('click', () => {
-    if (ocrDetectedItems.length === 0) return;
+    const checkedRows = ocrTbody.querySelectorAll('tr');
+    let importedCount = 0;
 
-    // Append to current dishes
-    ocrDetectedItems.forEach(item => {
-      quickState.items.push({
-        id: 'ocr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 3),
-        name: item.name,
-        price: item.price,
-        sharedBy: [...quickState.people]
-      });
+    checkedRows.forEach((tr, idx) => {
+      const cb = tr.querySelector('.ocr-item-check');
+      if (cb && cb.checked && ocrDetectedItems[idx]) {
+        const item = ocrDetectedItems[idx];
+        quickState.items.push({
+          id: 'ocr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 3),
+          name: item.name,
+          price: item.price,
+          sharedBy: [...quickState.people]
+        });
+        importedCount++;
+      }
     });
+
+    if (importedCount === 0) {
+      showToast('Please select at least one item to import.');
+      return;
+    }
 
     modalOcr.classList.remove('open');
     renderQuickSplit();
-    showToast(`Imported ${ocrDetectedItems.length} items from receipt!`);
+    showToast(`Imported ${importedCount} dishes into bill!`);
   });
 
   // Parse raw pasted text
@@ -746,17 +916,17 @@ function renderOcrResults() {
   ocrDetectedItems.forEach((item, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="input" type="text" style="padding: 4px 6px;"></td>
-      <td><input class="input mono" type="number" step="0.01" style="padding: 4px 6px; width: 80px;"></td>
+      <td style="text-align: center;">
+        <input type="checkbox" class="ocr-item-check" data-idx="${idx}" checked style="width: 16px; height: 16px; accent-color: var(--color-accent); cursor: pointer;">
+      </td>
+      <td><input class="input" type="text" value="${escapeHtml(item.name)}" style="padding: 4px 6px;"></td>
+      <td><input class="input mono" type="number" step="0.01" value="${item.price.toFixed(2)}" style="padding: 4px 6px; width: 85px;"></td>
       <td style="text-align: right;"><button class="key key--sm key--danger" type="button" style="padding: 2px 6px;">✕</button></td>
     `;
 
     // Keep state in sync with inline edits safely
     const nameInput = tr.querySelector('input[type="text"]');
     const priceInput = tr.querySelector('input[type="number"]');
-
-    nameInput.value = item.name;
-    priceInput.value = item.price.toFixed(2);
 
     nameInput.addEventListener('input', (e) => { item.name = e.target.value; });
     priceInput.addEventListener('input', (e) => { item.price = parseFloat(e.target.value) || 0; });
@@ -945,15 +1115,13 @@ function renderGroupLedger() {
 
   // 2. Render Participants List
   tripMembersList.innerHTML = '';
-  activeTrip.members.forEach(m => {
+  activeTrip.members.forEach((m, idx) => {
     const chip = document.createElement('div');
-    chip.className = 'chip-btn active';
-    chip.style.display = 'inline-flex';
-    chip.style.alignItems = 'center';
-    chip.style.gap = '6px';
+    chip.className = 'avatar-chip';
     chip.innerHTML = `
-      <span>${escapeHtml(m.name)}</span>
-      ${m.handle ? `<span class="mono" style="font-size: 10px; opacity: 0.7;">(${escapeHtml(m.handle)})</span>` : ''}
+      <span class="avatar-circle avatar-${idx % 6}">${escapeHtml(m.name.charAt(0).toUpperCase())}</span>
+      <span class="avatar-chip-name">${escapeHtml(m.name)}</span>
+      ${m.handle ? `<span class="avatar-chip-upi mono">(${escapeHtml(m.handle)})</span>` : ''}
     `;
     tripMembersList.appendChild(chip);
   });
@@ -1049,7 +1217,7 @@ function renderGroupLedger() {
         </div>
         <div style="display: flex; align-items: center; gap: var(--space-xs);">
           <span class="mono" style="font-weight: 700; font-size: var(--text-base); color: var(--color-accent);">${cur}${s.amount.toFixed(2)}</span>
-          <button class="key key--sm btn-pay-qr" type="button" title="Show payment QR">📲 Pay QR</button>
+          <button class="btn-pay-direct btn-pay-qr" type="button" title="Show payment QR">📲 Pay ${escapeHtml(s.to)}</button>
         </div>
       `;
 
@@ -1118,18 +1286,50 @@ function loadSampleTrip() {
 
 function openPaymentQRModal({ name, handle, amount, currency, note }) {
   modalQr.classList.add('open');
-  qrAmountDisplay.textContent = `${currency}${amount.toFixed(2)}`;
-  qrHandleDisplay.textContent = handle ? `To: ${name} (${handle})` : `To: ${name}`;
+
+  currentPayeeHandle = handle || '';
+  if (qrAvatarInitial) qrAvatarInitial.textContent = (name || 'P').charAt(0).toUpperCase();
+  if (qrPayeeName) qrPayeeName.textContent = name || 'Host';
+  if (qrPayeeHandle) qrPayeeHandle.textContent = handle ? handle : 'No UPI ID specified';
+  if (qrAmountDisplay) qrAmountDisplay.textContent = `${currency}${amount.toFixed(2)}`;
 
   const payment = renderPaymentQRCode(qrCodeDisplay, {
-    handle,
+    handle: currentPayeeHandle,
     amount,
     currency,
-    name,
-    note
+    name: name || 'Collector',
+    note: note || 'Tabby Bill Share'
   });
 
   currentPaymentURI = payment?.uri || '';
+
+  // Wire up Open in UPI app button
+  if (btnOpenUpiIntent) {
+    btnOpenUpiIntent.onclick = () => {
+      if (currentPaymentURI) {
+        window.location.href = currentPaymentURI;
+        showToast('Opening in UPI app (Google Pay / PhonePe / Paytm)...');
+      } else {
+        showToast('No payment link available.');
+      }
+    };
+  }
+
+  // Wire up Copy UPI ID button
+  if (btnCopyPaymentLink) {
+    btnCopyPaymentLink.onclick = () => {
+      const textToCopy = currentPayeeHandle || currentPaymentURI;
+      if (textToCopy) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast(currentPayeeHandle ? `Copied UPI ID "${currentPayeeHandle}"!` : 'Copied payment URI!');
+        }).catch(() => {
+          showToast('Failed to copy.');
+        });
+      } else {
+        showToast('No UPI ID to copy.');
+      }
+    };
+  }
 }
 
 /* ==========================================================================

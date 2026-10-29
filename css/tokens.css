@@ -44,6 +44,20 @@
   --color-danger: oklch(55.0% 0.190 25);
   --color-danger-wash: oklch(94.0% 0.040 25);
 
+  /* Avatar Pastel Color System (Subtle, harmonious, accessible) */
+  --avatar-bg-0: oklch(92.0% 0.045 250);
+  --avatar-ink-0: oklch(42.0% 0.160 250);
+  --avatar-bg-1: oklch(92.0% 0.055 300);
+  --avatar-ink-1: oklch(42.0% 0.160 300);
+  --avatar-bg-2: oklch(93.0% 0.050 175);
+  --avatar-ink-2: oklch(38.0% 0.140 175);
+  --avatar-bg-3: oklch(93.0% 0.065 75);
+  --avatar-ink-3: oklch(42.0% 0.150 75);
+  --avatar-bg-4: oklch(93.0% 0.055 15);
+  --avatar-ink-4: oklch(42.0% 0.160 15);
+  --avatar-bg-5: oklch(93.0% 0.055 145);
+  --avatar-ink-5: oklch(38.0% 0.140 145);
+
   /* Keycap Controls */
   --color-key-face: oklch(99.4% 0.003 250);
   --color-key-edge: oklch(80.0% 0.016 254);
@@ -130,6 +144,20 @@
   --color-focus: oklch(62.0% 0.200 256);
   --color-accent-deep: oklch(50.0% 0.190 260);
   --color-accent-edge: oklch(42.0% 0.180 260);
+
+  /* Dark mode avatar tones */
+  --avatar-bg-0: oklch(30.0% 0.080 250);
+  --avatar-ink-0: oklch(88.0% 0.080 250);
+  --avatar-bg-1: oklch(30.0% 0.080 300);
+  --avatar-ink-1: oklch(88.0% 0.080 300);
+  --avatar-bg-2: oklch(30.0% 0.080 175);
+  --avatar-ink-2: oklch(88.0% 0.080 175);
+  --avatar-bg-3: oklch(30.0% 0.080 75);
+  --avatar-ink-3: oklch(88.0% 0.080 75);
+  --avatar-bg-4: oklch(30.0% 0.080 15);
+  --avatar-ink-4: oklch(88.0% 0.080 15);
+  --avatar-bg-5: oklch(30.0% 0.080 145);
+  --avatar-ink-5: oklch(88.0% 0.080 145);
   
   --color-key-face: oklch(22.0% 0.022 262);
   --color-key-edge: oklch(14.0% 0.018 262);

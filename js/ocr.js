@@ -1,28 +1,76 @@
 /**
  * Bill OCR Scanner & Text Parsing Module
  * Provides in-browser image pre-processing, Tesseract.js optical recognition,
- * and heuristic regex line-item parsing.
+ * and intelligent heuristic regex line-item parsing specifically tuned for
+ * restaurant bills, cafe receipts, and Indian/international dining invoices.
  */
 
-// Common receipt noise keywords to filter out non-dish lines
-const NOISE_KEYWORDS = [
-  'subtotal', 'sub-total', 'sub total',
-  'tax', 'vat', 'gst', 'hst',
-  'total', 'grand total', 'balance due', 'amount due',
-  'tip', 'gratuity', 'suggested',
-  'visa', 'mastercard', 'amex', 'discover', 'debit', 'credit',
-  'cash', 'change', 'tend', 'tendered',
-  'date', 'time', 'table', 'server', 'check', 'order', 'guest', 'guests',
-  'merchant', 'terminal', 'auth', 'approval', 'trans',
-  'thank you', 'thanks for', 'welcome', 'phone', 'tel', 'www', 'http'
+// Noise phrases that can be matched as phrases
+const NOISE_PHRASES = [
+  'subtotal', 'sub-total', 'sub total', 's.total',
+  'balance due', 'amount due', 'net amount', 'round off', 'grand total',
+  'service charge', 'visit again', 'thank you', 'thanks for', 'have a nice day',
+  'bill no', 'token no', 'invoice no', 'kot no', 'order no', 'table no', 'ref no'
 ];
+
+// Single noise words that must be matched on word boundaries (\bword\b)
+const NOISE_WORDS = [
+  'tax', 'vat', 'gst', 'gstin', 'cgst', 'sgst', 'igst', 'cess', 'fssai', 'cin', 'pan', 'sac', 'hsn',
+  'total', 'tip', 'gratuity', 'visa', 'mastercard', 'amex', 'discover', 'debit', 'credit', 'card',
+  'cash', 'change', 'tend', 'tendered', 'upi', 'phonepe', 'gpay', 'paytm',
+  'date', 'time', 'table', 'server', 'waiter', 'steward', 'captain', 'pax',
+  'check', 'order', 'guest', 'guests', 'counter', 'pos', 'kds',
+  'bill', 'token', 'invoice', 'kot', 'merchant', 'terminal', 'auth', 'approval', 'trans', 'txn',
+  'phone', 'tel', 'mob', 'contact', 'call',
+  'bengaluru', 'bangalore', 'mumbai', 'delhi', 'karnataka', 'maharashtra', 'chennai', 'hyderabad',
+  'road', 'street', 'cross', 'layout', 'nagar', 'floor', 'city', 'pincode', 'pin'
+];
+
+/**
+ * Checks if a string or number is an Indian 6-digit PIN code (e.g. 560001)
+ */
+function isPinCode(str) {
+  return /^[1-9][0-9]{5}$/.test(str.trim());
+}
+
+/**
+ * Checks if a price is outside realistic restaurant item prices (e.g. phone numbers or postal codes)
+ */
+function isUnrealisticPrice(price) {
+  return price > 15000 || price < 1;
+}
+
+/**
+ * Cleans extracted dish names by stripping leading serial numbers,
+ * embedded item codes, internal quantities, and trailing tax symbols.
+ * 
+ * Example: "1. Masala Dosa 1 149.00 %" -> "Masala Dosa"
+ */
+function cleanDishName(rawName) {
+  let name = rawName;
+
+  // 1. Strip leading item numbers like "1. ", "02) ", "#3 "
+  name = name.replace(/^(\d{1,2}[\.\)\-\s]+|#\d+\s*)/, '');
+
+  // 2. Strip trailing percentage, tax, or punctuation marks like "%", "*", ":", "-", "."
+  name = name.replace(/[\s\.\-:_~*%\$€£₹¥]+$/, '');
+
+  // 3. Strip trailing rate/quantity patterns if OCR captured "Masala Dosa 1 149.00"
+  name = name.replace(/\s+\d+\s+\d+[.,]\d{2}.*$/, '');
+
+  // 4. Strip single isolated trailing quantity digits like "Tea 2" -> "Tea"
+  name = name.replace(/\s+\d+$/, '');
+
+  // 5. Final whitespace cleanup
+  return name.trim();
+}
 
 /**
  * Heuristically parses raw text into an array of items and prices.
  * Handles messy OCR lines, varying spacing, and currency symbols.
  * 
  * @param {string} rawText
- * @returns {Array<{ name: string, price: number }>}
+ * @returns {Array<{ name: string, price: number, isFood: boolean }>}
  */
 export function parseReceiptText(rawText) {
   if (!rawText || typeof rawText !== 'string') return [];
@@ -30,11 +78,9 @@ export function parseReceiptText(rawText) {
   const lines = rawText.split(/\r?\n/);
   const items = [];
 
-  // Match line ending with a number that looks like a price:
-  // e.g. "Margherita Pizza $14.50", "Peroni Beer 12.00", "Steak - 28.50"
-  // Currency symbols optional: $, €, £, ₹, ¥
-  const priceRegex = /([$€£₹¥]?\s*\d+[.,]\d{2})\s*$/;
-  const genericPriceRegex = /([$€£₹¥]?\s*\d+(?:[.,]\d{2})?)\s*$/;
+  // Price matchers
+  const priceRegex = /([$€£₹¥]?\s*\d+[.,]\d{2})\s*[%*]?\s*$/;
+  const intPriceRegex = /([$€£₹¥]?\s*\d{2,5})\s*[%*]?\s*$/;
 
   for (let rawLine of lines) {
     const trimmed = rawLine.trim();
@@ -42,36 +88,44 @@ export function parseReceiptText(rawText) {
 
     const lower = trimmed.toLowerCase();
 
-    // 1. Skip lines that contain noise words
-    const isNoise = NOISE_KEYWORDS.some(kw => {
-      // Check if word boundary matches noise word
-      const regex = new RegExp(`\\b${kw}\\b`, 'i');
-      return regex.test(lower);
+    // 1. Check noise phrases
+    const isPhraseNoise = NOISE_PHRASES.some(phrase => lower.includes(phrase));
+    if (isPhraseNoise) continue;
+
+    // 2. Check noise words on word boundaries
+    const isWordNoise = NOISE_WORDS.some(word => {
+      const rx = new RegExp(`\\b${word}\\b`, 'i');
+      return rx.test(lower);
     });
+    if (isWordNoise) continue;
 
-    if (isNoise) continue;
+    // 2. Skip obvious phone numbers, dates, GSTINs
+    if (/(\d{3,4}[-\s]\d{3,4}|\b\d{10}\b)/.test(trimmed)) continue;
+    if (/\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}\b/.test(trimmed)) continue; // GSTIN format
+    if (/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/.test(trimmed)) continue; // Date
 
-    // 2. Test for trailing price pattern
+    // 3. Match trailing price
     let match = trimmed.match(priceRegex);
     if (!match) {
-      match = trimmed.match(genericPriceRegex);
+      match = trimmed.match(intPriceRegex);
     }
 
     if (match) {
       const priceStr = match[1].replace(/[$€£₹¥\s]/g, '').replace(',', '.');
       const price = parseFloat(priceStr);
 
-      if (!isNaN(price) && price > 0) {
-        // Strip the matched price from the line to get the item name
-        let itemName = trimmed.substring(0, match.index).trim();
-        // Clean trailing dots, dashes, or colons (e.g. "Pizza .... 14.50" -> "Pizza")
-        itemName = itemName.replace(/[\s\.\-:_~*]+$/, '').trim();
+      // Validate price (not NaN, not a 6-digit pin code, within realistic restaurant item range)
+      if (!isNaN(price) && price > 0 && !isPinCode(priceStr) && !isUnrealisticPrice(price)) {
+        // Strip matched price from line
+        let rawItemName = trimmed.substring(0, match.index).trim();
+        let cleanedName = cleanDishName(rawItemName);
 
-        // Discard if name is empty or too short
-        if (itemName.length >= 2) {
+        // Check that item name isn't just numbers, symbols, or phone prefixes
+        if (cleanedName.length >= 2 && !/^\d+$/.test(cleanedName) && !/^(ph|tel|mob|gst)/i.test(cleanedName)) {
           items.push({
-            name: itemName,
-            price: Math.round(price * 100) / 100
+            name: cleanedName,
+            price: Math.round(price * 100) / 100,
+            isFood: true
           });
         }
       }
@@ -92,7 +146,6 @@ export function preprocessReceiptImage(img) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
-  // Scale down if massive (e.g. 48MP phone photo) to maintain browser responsiveness
   const maxDim = 1800;
   let { width, height } = img;
   if (width > maxDim || height > maxDim) {
@@ -107,7 +160,6 @@ export function preprocessReceiptImage(img) {
 
   canvas.width = width;
   canvas.height = height;
-
   ctx.drawImage(img, 0, 0, width, height);
 
   // Grayscale & Contrast Enhancement
@@ -115,9 +167,7 @@ export function preprocessReceiptImage(img) {
   const d = imgData.data;
 
   for (let i = 0; i < d.length; i += 4) {
-    // Luminance formula
     const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    // Contrast boost: values above 140 become lighter, below 140 become darker
     const enhanced = gray > 140 ? Math.min(255, gray * 1.15) : Math.max(0, gray * 0.85);
     d[i] = enhanced;
     d[i + 1] = enhanced;
@@ -140,7 +190,6 @@ export async function processReceiptImage(imageFile, onProgress = () => {}) {
     throw new Error('Tesseract OCR engine is not loaded. Please ensure you are online or check your browser connection.');
   }
 
-  // Load image into HTMLImageElement
   const imgUrl = URL.createObjectURL(imageFile);
   const img = new Image();
 
@@ -150,11 +199,9 @@ export async function processReceiptImage(imageFile, onProgress = () => {}) {
     img.src = imgUrl;
   });
 
-  // Pre-process canvas for higher OCR clarity
   const canvas = preprocessReceiptImage(img);
   URL.revokeObjectURL(imgUrl);
 
-  // Execute OCR with Tesseract
   const result = await window.Tesseract.recognize(canvas, 'eng', {
     logger: m => {
       if (m && m.progress !== undefined) {
@@ -168,4 +215,3 @@ export async function processReceiptImage(imageFile, onProgress = () => {}) {
 
   return result.data?.text || '';
 }
-

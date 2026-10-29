@@ -79,6 +79,25 @@ export function runOcrParserTests() {
     assert(items[2].price === 6.00, 'Milkshake 6.00');
   }
 
+  // Test 4: Real-world Indian restaurant receipt with PIN, Phone, GSTIN, Bill No, and item numbers
+  {
+    const indianBill = `
+      Bengaluru, Karnataka 560001
+      Ph: 080-4567 8910.0
+      GSTIN: 29ABCDE1234F1Z 5.00
+      Bill No. : SKB/25-05/ 142.00
+      Token No. : A 42.00
+      1. Masala Dosa 1 149.00 % 149.00
+      2. Paneer Roll 1 249.00 % 249.00
+      3. Tea 2 349.00 % 98.00
+    `;
+    const items = parseReceiptText(indianBill);
+    assert(items.length === 3, `Filtered all metadata noise and extracted exactly 3 food items (got ${items.length})`);
+    assert(items[0].name === 'Masala Dosa' && items[0].price === 149.00, `Cleaned Masala Dosa 149.00 (got "${items[0]?.name}", ${items[0]?.price})`);
+    assert(items[1].name === 'Paneer Roll' && items[1].price === 249.00, `Cleaned Paneer Roll 249.00 (got "${items[1]?.name}", ${items[1]?.price})`);
+    assert(items[2].name === 'Tea' && items[2].price === 98.00, `Cleaned Tea 98.00 (got "${items[2]?.name}", ${items[2]?.price})`);
+  }
+
   return { passed, failed };
 }
 

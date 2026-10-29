@@ -111,7 +111,42 @@ p {
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px oklch(52% 0.19 258 / 0.3);
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-sub {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.brand-tagline {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  margin-top: 1px;
 }
 
 .brand-badge {
@@ -123,12 +158,6 @@ p {
   padding: 3px 8px;
   border-radius: 4px;
   border: var(--rule-hair) solid var(--color-graphite-rule);
-}
-
-.brand-title {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: -0.02em;
 }
 
 .header-actions {
@@ -512,4 +541,335 @@ select.input {
   transform: translateY(0);
   opacity: 1;
 }
+
+/* ==========================================================================
+   Section Cards, Badges & Extended Inputs
+   ========================================================================== */
+
+.panel-desc {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+.section-card {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  padding: var(--space-md);
+}
+
+.badge-tag {
+  background: var(--color-paper-3);
+  color: var(--color-ink-2);
+  font-family: var(--font-outlier);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: var(--rule-hair) solid var(--color-rule);
+}
+
+.input-with-symbol {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol-label {
+  position: absolute;
+  left: 12px;
+  font-family: var(--font-outlier);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.input-with-symbol .input {
+  padding-left: 32px;
+}
+
+.input-lg {
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding: 0.65rem 0.85rem;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ==========================================================================
+   Avatar Chips System
+   ========================================================================== */
+
+.avatar-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.avatar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px 4px 4px;
+  box-shadow: 0 1px 2px oklch(21% 0.028 262 / 0.04);
+}
+
+.avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.avatar-0 { background: var(--avatar-bg-0); color: var(--avatar-ink-0); }
+.avatar-1 { background: var(--avatar-bg-1); color: var(--avatar-ink-1); }
+.avatar-2 { background: var(--avatar-bg-2); color: var(--avatar-ink-2); }
+.avatar-3 { background: var(--avatar-bg-3); color: var(--avatar-ink-3); }
+.avatar-4 { background: var(--avatar-bg-4); color: var(--avatar-ink-4); }
+.avatar-5 { background: var(--avatar-bg-5); color: var(--avatar-ink-5); }
+
+.avatar-chip-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.avatar-chip-upi {
+  font-family: var(--font-outlier);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.avatar-chip-remove {
+  background: none;
+  border: none;
+  color: var(--color-dim);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  margin-left: 2px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: color var(--dur-micro) var(--ease-out);
+}
+
+.avatar-chip-remove:hover {
+  color: var(--color-danger);
+}
+
+/* ==========================================================================
+   Receipt Card (Perforated ticket aesthetic)
+   ========================================================================== */
+
+.receipt-card {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  padding: var(--space-md) var(--space-lg);
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+.receipt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.receipt-divider {
+  border-top: 1.5px dashed var(--color-rule-2);
+  margin: var(--space-sm) 0;
+}
+
+.receipt-card .total-row {
+  margin-top: 0;
+  padding-top: var(--space-xs);
+  border-top: none;
+  font-size: 1.25rem;
+}
+
+/* ==========================================================================
+   Enhanced Person Breakdown Card (Collector vs Debtor Pay states)
+   ========================================================================== */
+
+.person-card-collector {
+  border-left: 3px solid var(--color-accent);
+}
+
+.person-collector-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-accent-wash);
+  color: var(--color-accent-deep);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.person-share-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.btn-pay-direct {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border: var(--rule-hair) solid var(--color-accent-edge);
+  box-shadow: var(--shadow-key-accent);
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: 32px;
+  border-radius: var(--radius-key);
+  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+}
+
+.btn-pay-direct:hover {
+  transform: translateY(-1px);
+}
+
+.btn-pay-direct:active {
+  transform: translateY(2px);
+  box-shadow: var(--shadow-key-press);
+}
+
+/* ==========================================================================
+   OCR Progress Bar
+   ========================================================================== */
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-paper-3);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  transition: width 0.2s ease;
+}
+
+/* ==========================================================================
+   Instant UPI Bank Payment Modal
+   ========================================================================== */
+
+.upi-modal-content {
+  text-align: center;
+}
+
+.upi-secure-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-success-wash);
+  color: var(--color-success);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  margin-top: 4px;
+}
+
+.upi-recipient-card {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: var(--space-md);
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0 var(--space-sm);
+}
+
+.upi-avatar-initial {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.upi-amount-display {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-card);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.upi-apps-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: var(--space-xs) 0;
+}
+
+.upi-app-pill {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-ink-2);
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.upi-app-pill::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
 

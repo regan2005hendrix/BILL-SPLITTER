@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tabby — Bill Splitter & Shared Expense Ledger</title>
-  <meta name="description" content="Anti-slop, privacy-first bill splitter and trip expense ledger with in-browser OCR receipt scanning and debt minimization.">
+  <meta name="description" content="Ultra-clean, privacy-first bill splitter and trip expense ledger with in-browser OCR receipt scanning and direct UPI bank payments.">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
 
@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- In-Browser OCR & Dynamic QR Libraries (Client-Side, zero account required) -->
+  <!-- In-Browser OCR & Dynamic QR Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
 </head>
@@ -26,11 +26,18 @@
     <!-- Header -->
     <header class="app-header">
       <div class="brand">
-        <span class="brand-badge">TABBY // SPLIT</span>
-        <h1 class="brand-title">Bill Splitter</h1>
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Tabby <span class="brand-sub">// Split</span></div>
+          <div class="brand-tagline">Fair bill splitting & direct UPI settlements</div>
+        </div>
       </div>
       <div class="header-actions">
-        <button id="theme-toggle" class="key key--sm" title="Toggle Dark / Light Theme" aria-label="Toggle theme">
+        <button id="theme-toggle" class="key key--icon" title="Toggle Theme" aria-label="Toggle theme">
           <span id="theme-icon">🌙</span>
         </button>
       </div>
@@ -38,8 +45,14 @@
 
     <!-- Navigation Tabs -->
     <nav class="mode-tabs" aria-label="Split Modes">
-      <button class="tab-btn active" data-tab="quick-split">Quick Split (Meals)</button>
-      <button class="tab-btn" data-tab="group-ledger">Group Ledger (Trips)</button>
+      <button class="tab-btn active" data-tab="quick-split">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <span>Quick Split (Meals)</span>
+      </button>
+      <button class="tab-btn" data-tab="group-ledger">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Group Ledger (Trips)</span>
+      </button>
     </nav>
 
     <!-- ======================================================================
@@ -50,22 +63,28 @@
         <!-- Left: Inputs & Items -->
         <section class="panel">
           <div class="panel-header">
-            <h2 class="panel-title">Bill Setup</h2>
+            <div>
+              <h2 class="panel-title">Bill Setup</h2>
+              <p class="panel-desc">Customize participants, dishes, tip & tax</p>
+            </div>
             <div class="form-row">
-              <button id="btn-load-sample-bill" class="key key--sm" type="button">Load Sample Dinner</button>
-              <button id="btn-open-scanner" class="key key--sm key--primary" type="button">📷 Scan Receipt</button>
+              <button id="btn-load-sample-bill" class="key key--sm" type="button">Load Sample</button>
+              <button id="btn-open-scanner" class="key key--sm key--primary" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>Scan Bill</span>
+              </button>
             </div>
           </div>
 
-          <!-- Quick Parameters -->
+          <!-- Currency & Split Style Selectors -->
           <div class="form-row" style="margin-bottom: var(--space-md);">
             <div class="form-group" style="flex: 1;">
               <label for="currency-select" class="label">Currency</label>
               <select id="currency-select" class="input">
-                <option value="$" selected>$ USD / CAD / AUD</option>
-                <option value="€">€ EUR</option>
-                <option value="£">£ GBP</option>
-                <option value="₹">₹ INR</option>
+                <option value="₹" selected>₹ INR (Indian Rupee)</option>
+                <option value="$">$ USD / CAD / AUD</option>
+                <option value="€">€ EUR (Euro)</option>
+                <option value="£">£ GBP (British Pound)</option>
                 <option value="¥">¥ JPY / CNY</option>
                 <option value="CHF">CHF Swiss Franc</option>
               </select>
@@ -79,57 +98,65 @@
             </div>
           </div>
 
-          <!-- Equal Split Specific Input -->
-          <div id="equal-split-controls" class="form-group" style="display: none;">
-            <div class="form-row">
-              <div style="flex: 1;">
-                <label for="equal-subtotal" class="label">Subtotal Amount</label>
-                <input id="equal-subtotal" class="input mono" type="number" step="0.01" min="0" placeholder="0.00">
-              </div>
-              <div style="flex: 1;">
-                <label for="equal-people-count" class="label">Number of People</label>
-                <input id="equal-people-count" class="input mono" type="number" min="1" max="100" value="3">
-              </div>
+          <!-- People Section (Available in BOTH Equal & Itemized!) -->
+          <div class="form-group section-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+              <label class="label" style="margin: 0;">People at the Table</label>
+              <span id="people-count-badge" class="badge-tag">3 People</span>
+            </div>
+            
+            <div id="quick-people-chips" class="avatar-chips-grid">
+              <!-- Dynamic Person Chips with Avatars and UPI Badges -->
+            </div>
+
+            <div class="form-row" style="margin-top: var(--space-sm);">
+              <input id="new-person-name" class="input" type="text" placeholder="Name (e.g. Alice)" style="flex: 1.2;">
+              <input id="new-person-upi" class="input" type="text" placeholder="UPI ID (optional, e.g. name@upi)" style="flex: 1.5;">
+              <button id="btn-add-person" class="key key--primary" type="button">+ Add</button>
             </div>
           </div>
 
-          <!-- Itemized Split Specific Section -->
-          <div id="itemized-split-controls">
-            <!-- Participants list -->
-            <div class="form-group">
-              <label class="label">People at the Table</label>
-              <div id="quick-people-chips" class="preset-chips" style="margin-bottom: var(--space-xs);">
-                <!-- Dynamic Person Chips injected here -->
-              </div>
-              <div class="form-row">
-                <input id="new-person-name" class="input" type="text" placeholder="Add person (e.g. Alice)">
-                <button id="btn-add-person" class="key" type="button">+ Add</button>
-              </div>
+          <!-- Equal Split Subtotal Box (When Equal Split is active) -->
+          <div id="equal-split-controls" class="form-group section-card" style="display: none; margin-top: var(--space-md);">
+            <label for="equal-subtotal" class="label">Total Bill Amount to Split</label>
+            <div class="input-with-symbol">
+              <span class="currency-symbol-label">₹</span>
+              <input id="equal-subtotal" class="input mono input-lg" type="number" step="0.01" min="0" placeholder="0.00">
             </div>
+            <p style="font-size: var(--text-xs); color: var(--color-muted); margin-top: 4px;">
+              The total amount will be split equally among all participants above.
+            </p>
+          </div>
 
-            <!-- Items Table -->
-            <div class="form-group">
-              <div class="panel-header" style="margin-top: var(--space-md); margin-bottom: var(--space-xs);">
-                <label class="label" style="margin: 0;">Dishes & Drinks</label>
+          <!-- Itemized Split Specific Section -->
+          <div id="itemized-split-controls" style="margin-top: var(--space-md);">
+            <div class="section-card">
+              <div class="panel-header" style="margin-bottom: var(--space-xs); padding-bottom: var(--space-xs);">
+                <div>
+                  <label class="label" style="margin: 0;">Dishes & Drinks</label>
+                  <p style="font-size: var(--text-xs); color: var(--color-muted);">Assign who shared which dish</p>
+                </div>
                 <button id="btn-open-paste-modal" class="key key--sm" type="button">📋 Paste Text</button>
               </div>
               
-              <table class="data-table" id="dishes-table">
-                <thead>
-                  <tr>
-                    <th style="width: 42%;">Item</th>
-                    <th style="width: 22%;">Price</th>
-                    <th style="width: 28%;">Shared By</th>
-                    <th style="width: 8%;"></th>
-                  </tr>
-                </thead>
-                <tbody id="dishes-tbody">
-                  <!-- Dish rows injected here -->
-                </tbody>
-              </table>
+              <div class="table-responsive">
+                <table class="data-table" id="dishes-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 36%;">Item</th>
+                      <th style="width: 22%;">Price</th>
+                      <th style="width: 34%;">Shared By</th>
+                      <th style="width: 8%;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="dishes-tbody">
+                    <!-- Dish rows injected here -->
+                  </tbody>
+                </table>
+              </div>
 
               <div class="form-row" style="margin-top: var(--space-sm);">
-                <input id="new-dish-name" class="input" type="text" placeholder="Item name (e.g. Pasta)" style="flex: 2;">
+                <input id="new-dish-name" class="input" type="text" placeholder="Item name (e.g. Masala Dosa)" style="flex: 2;">
                 <input id="new-dish-price" class="input mono" type="number" step="0.01" min="0" placeholder="Price" style="flex: 1;">
                 <button id="btn-add-dish" class="key key--primary" type="button">+ Add Item</button>
               </div>
@@ -137,100 +164,119 @@
           </div>
 
           <!-- Tax, Tip & Discounts -->
-          <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule);">
-            <label class="label">Tip Percentage</label>
+          <div class="form-group section-card" style="margin-top: var(--space-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label class="label">Tip / Gratuity</label>
+              <span id="tip-amount-preview" class="mono" style="font-size: var(--text-xs); color: var(--color-accent);">₹0.00</span>
+            </div>
             <div class="preset-chips" id="tip-presets">
               <button class="chip-btn" data-tip="0">0%</button>
-              <button class="chip-btn" data-tip="10">10%</button>
-              <button class="chip-btn active" data-tip="15">15%</button>
+              <button class="chip-btn" data-tip="5">5%</button>
+              <button class="chip-btn active" data-tip="10">10%</button>
+              <button class="chip-btn" data-tip="15">15%</button>
               <button class="chip-btn" data-tip="18">18%</button>
-              <button class="chip-btn" data-tip="20">20%</button>
-              <input id="custom-tip-input" class="input mono" type="number" min="0" max="100" placeholder="Custom %" style="width: 100px; padding: 4px 8px; font-size: var(--text-xs);">
+              <input id="custom-tip-input" class="input mono" type="number" min="0" max="100" placeholder="Custom %" style="width: 90px; padding: 4px 8px; font-size: var(--text-xs);">
             </div>
-          </div>
 
-          <div class="form-row">
-            <div class="form-group" style="flex: 1;">
-              <label for="tax-percent" class="label">Tax (%)</label>
-              <input id="tax-percent" class="input mono" type="number" step="0.1" min="0" value="8.0" placeholder="Tax %">
-            </div>
-            <div class="form-group" style="flex: 1;">
-              <label for="discount-input" class="label">Discount ($ off)</label>
-              <input id="discount-input" class="input mono" type="number" step="0.01" min="0" value="0" placeholder="0.00">
-            </div>
-            <div class="form-group" style="flex: 1;">
-              <label for="rounding-select" class="label">Rounding</label>
-              <select id="rounding-select" class="input">
-                <option value="exact" selected>Exact Cents</option>
-                <option value="up-whole">Round Up $1</option>
-                <option value="up-half">Round Up 0.50</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Payer info for QR generation -->
-          <div class="form-group" style="margin-top: var(--space-sm);">
-            <div class="form-row">
-              <div style="flex: 1;">
-                <label for="quick-payer-select" class="label">Who Paid in Full?</label>
-                <select id="quick-payer-select" class="input">
-                  <option value="">I paid (Device Owner)</option>
+            <div class="form-row" style="margin-top: var(--space-sm);">
+              <div class="form-group" style="flex: 1;">
+                <label for="tax-percent" class="label">Tax / GST (%)</label>
+                <input id="tax-percent" class="input mono" type="number" step="0.1" min="0" value="5.0" placeholder="5.0">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="discount-input" class="label">Discount (flat off)</label>
+                <input id="discount-input" class="input mono" type="number" step="0.01" min="0" value="0" placeholder="0.00">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="rounding-select" class="label">Rounding</label>
+                <select id="rounding-select" class="input">
+                  <option value="exact" selected>Exact Cents / Paise</option>
+                  <option value="up-whole">Round Up ₹1</option>
+                  <option value="up-half">Round Up 0.50</option>
                 </select>
               </div>
-              <div style="flex: 1;">
-                <label for="quick-payer-handle" class="label">Payment Handle (UPI ID / Venmo)</label>
-                <input id="quick-payer-handle" class="input" type="text" placeholder="name@upi or @username">
+            </div>
+          </div>
+
+          <!-- Payer & UPI Receiver Configuration -->
+          <div class="form-group section-card" style="margin-top: var(--space-md);">
+            <label class="label">Who Paid the Full Bill? (Receiver of Money)</label>
+            <div class="form-row">
+              <div style="flex: 1.2;">
+                <select id="quick-payer-select" class="input">
+                  <!-- Dynamically populated from participants -->
+                </select>
+              </div>
+              <div style="flex: 1.5;">
+                <input id="quick-payer-handle" class="input mono" type="text" placeholder="Receiver's UPI ID (e.g. name@okhdfcbank)">
               </div>
             </div>
+            <p style="font-size: var(--text-xs); color: var(--color-muted); margin-top: 6px;">
+              💡 <strong>Direct Bank Transfer:</strong> When other users scan their payment QR, the money will be deposited instantly into this bank account with zero fees.
+            </p>
           </div>
         </section>
 
-        <!-- Right: Real-time Breakdown & Share Summary -->
+        <!-- Right: Receipt Calculation Summary & UPI Settlements -->
         <section class="panel">
           <div class="panel-header">
-            <h2 class="panel-title">Calculation Summary</h2>
+            <div>
+              <h2 class="panel-title">Calculation Summary</h2>
+              <p class="panel-desc">Real-time breakdown & payment links</p>
+            </div>
             <button id="btn-export-to-trip" class="key key--sm" type="button" title="Push this meal to Group Ledger">➡ Export to Trip</button>
           </div>
 
-          <!-- Total Metrics in Graphite Card -->
-          <div class="summary-graphite">
-            <div class="summary-row">
-              <span>Items Subtotal:</span>
-              <span id="summary-subtotal" class="mono">$0.00</span>
+          <!-- Total Metrics in Styled Receipt Card -->
+          <div class="receipt-card">
+            <div class="receipt-header">
+              <span class="mono" style="font-size: 11px; letter-spacing: 0.05em; opacity: 0.8;">RECEIPT BREAKDOWN</span>
+              <span id="receipt-currency-tag" class="brand-badge">INR (₹)</span>
             </div>
-            <div class="summary-row" id="row-discount" style="display: none;">
-              <span>Discount Applied:</span>
-              <span id="summary-discount" class="mono" style="color: var(--color-danger);">- $0.00</span>
-            </div>
-            <div class="summary-row">
-              <span>Tax (<span id="summary-tax-rate">8%</span>):</span>
-              <span id="summary-tax" class="mono">$0.00</span>
-            </div>
-            <div class="summary-row">
-              <span>Tip (<span id="summary-tip-rate">15%</span>):</span>
-              <span id="summary-tip" class="mono">$0.00</span>
-            </div>
-            <div class="summary-row total-row">
-              <span>Total Bill:</span>
-              <span id="summary-total" class="mono amount">$0.00</span>
+            <div class="receipt-body">
+              <div class="summary-row">
+                <span>Items Subtotal:</span>
+                <span id="summary-subtotal" class="mono">₹0.00</span>
+              </div>
+              <div class="summary-row" id="row-discount" style="display: none;">
+                <span>Discount Applied:</span>
+                <span id="summary-discount" class="mono" style="color: var(--color-danger);">- ₹0.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Tax / GST (<span id="summary-tax-rate">5%</span>):</span>
+                <span id="summary-tax" class="mono">₹0.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Tip (<span id="summary-tip-rate">10%</span>):</span>
+                <span id="summary-tip" class="mono">₹0.00</span>
+              </div>
+              <div class="receipt-divider"></div>
+              <div class="summary-row total-row">
+                <span>Total Bill:</span>
+                <span id="summary-total" class="mono amount">₹0.00</span>
+              </div>
             </div>
           </div>
 
-          <!-- Person Breakdown Cards -->
+          <!-- Person Breakdown Cards with Direct UPI Pay Buttons -->
           <div style="margin-top: var(--space-lg);">
-            <h3 style="font-size: var(--text-md); margin-bottom: var(--space-sm);">Individual Breakdown</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+              <h3 style="font-size: var(--text-md); margin: 0;">Individual Shares</h3>
+              <span style="font-size: var(--text-xs); color: var(--color-muted);">Scan QR to pay payer directly</span>
+            </div>
+            
             <div id="person-breakdown-list">
-              <!-- Dynamically populated person cards -->
+              <!-- Dynamically populated person cards with individual UPI Pay buttons -->
             </div>
           </div>
 
-          <!-- Actions -->
+          <!-- Action Buttons -->
           <div class="form-row" style="margin-top: var(--space-md); flex-wrap: wrap;">
             <button id="btn-copy-summary" class="key key--primary" style="flex: 1;" type="button">
               📋 Copy for WhatsApp / SMS
             </button>
             <button id="btn-show-bill-qr" class="key" type="button">
-              📲 Show Payment QR
+              📲 Payer's Full QR
             </button>
           </div>
         </section>
@@ -247,69 +293,77 @@
           <div class="panel-header">
             <div style="display: flex; align-items: center; gap: var(--space-sm);">
               <label for="trip-selector" class="label" style="margin: 0;">Active Trip:</label>
-              <select id="trip-selector" class="input" style="width: auto; min-width: 160px;">
+              <select id="trip-selector" class="input" style="width: auto; min-width: 170px;">
                 <!-- Dynamically populated trips -->
               </select>
             </div>
             <div class="form-row">
-              <button id="btn-load-sample-trip" class="key key--sm" type="button">Load Sample Trip</button>
+              <button id="btn-load-sample-trip" class="key key--sm" type="button">Load Sample</button>
               <button id="btn-new-trip" class="key key--sm key--primary" type="button">+ New Trip</button>
             </div>
           </div>
 
           <!-- Trip Members -->
-          <div class="form-group" style="margin-top: var(--space-md);">
+          <div class="form-group section-card" style="margin-top: var(--space-md);">
             <label class="label">Trip Participants</label>
-            <div id="trip-members-list" class="preset-chips" style="margin-bottom: var(--space-xs);">
-              <!-- Trip member chips -->
+            <div id="trip-members-list" class="avatar-chips-grid" style="margin-bottom: var(--space-xs);">
+              <!-- Trip member chips with avatars -->
             </div>
             <div class="form-row">
-              <input id="new-trip-member-name" class="input" type="text" placeholder="Member name (e.g. David)">
-              <input id="new-trip-member-handle" class="input" type="text" placeholder="Payment handle (optional)">
-              <button id="btn-add-trip-member" class="key" type="button">+ Add</button>
+              <input id="new-trip-member-name" class="input" type="text" placeholder="Name (e.g. David)" style="flex: 1.2;">
+              <input id="new-trip-member-handle" class="input mono" type="text" placeholder="UPI ID (optional, e.g. david@upi)" style="flex: 1.5;">
+              <button id="btn-add-trip-member" class="key key--primary" type="button">+ Add</button>
             </div>
           </div>
 
           <!-- Expenses List -->
           <div class="form-group" style="margin-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-md);">
             <div class="panel-header">
-              <h3 style="font-size: var(--text-md); margin: 0;">Expenses Log</h3>
+              <div>
+                <h3 style="font-size: var(--text-md); margin: 0;">Expenses Log</h3>
+                <p style="font-size: var(--text-xs); color: var(--color-muted);">Record group purchases</p>
+              </div>
               <button id="btn-open-add-expense" class="key key--sm key--primary" type="button">+ Log Expense</button>
             </div>
 
-            <div id="trip-expenses-empty" style="padding: var(--space-lg); text-align: center; color: var(--color-muted);">
-              No expenses recorded yet. Click "+ Log Expense" or "Load Sample Trip" above!
+            <div id="trip-expenses-empty" style="padding: var(--space-xl); text-align: center; color: var(--color-muted);">
+              No expenses recorded yet. Click "+ Log Expense" or "Load Sample" above!
             </div>
 
-            <table class="data-table" id="trip-expenses-table" style="display: none;">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Amount</th>
-                  <th>Paid By</th>
-                  <th>Split With</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="trip-expenses-tbody">
-                <!-- Dynamically injected expense rows -->
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="data-table" id="trip-expenses-table" style="display: none;">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Paid By</th>
+                    <th>Split With</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="trip-expenses-tbody">
+                  <!-- Dynamically injected expense rows -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
         <!-- Right: Net Balances & Debt Minimization Settlement -->
         <section class="panel">
           <div class="panel-header">
-            <h2 class="panel-title">Debt Settlement Plan</h2>
-            <button id="btn-reset-trip" class="key key--sm key--danger" type="button">Reset Trip</button>
+            <div>
+              <h2 class="panel-title">Debt Settlement Plan</h2>
+              <p class="panel-desc">Minimal bank transfers to square all debts</p>
+            </div>
+            <button id="btn-reset-trip" class="key key--sm key--danger" type="button">Reset</button>
           </div>
 
-          <!-- Total Group Spending in Graphite Card -->
-          <div class="summary-graphite">
+          <!-- Total Group Spending in Receipt Card -->
+          <div class="receipt-card">
             <div class="summary-row">
-              <span>Total Trip Spending:</span>
-              <span id="trip-total-spend" class="mono">$0.00</span>
+              <span>Total Group Spend:</span>
+              <span id="trip-total-spend" class="mono amount">₹0.00</span>
             </div>
             <div class="summary-row">
               <span>Total Expenses Logged:</span>
@@ -325,21 +379,21 @@
             </div>
           </div>
 
-          <!-- Minimized Settlement Payments -->
+          <!-- Minimized Settlement Payments with Direct UPI QR -->
           <div style="margin-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-md);">
-            <h3 style="font-size: var(--text-md); margin-bottom: var(--space-sm);">Optimal Repayment Schedule</h3>
+            <h3 style="font-size: var(--text-md); margin-bottom: var(--space-2xs);">Optimal Repayments (Fewest Transfers)</h3>
             <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);">
-              Calculated using greedy debt minimization to settle all balances in the fewest possible bank transactions.
+              Click "📲 Pay UPI" to scan and transfer directly into their bank account.
             </p>
             <div id="trip-settlement-list">
-              <!-- Dynamically injected settlement payment instructions -->
+              <!-- Dynamically injected settlement payment cards with QR buttons -->
             </div>
           </div>
 
           <!-- Copy Trip Summary -->
           <div style="margin-top: var(--space-lg);">
             <button id="btn-copy-trip-summary" class="key key--primary" style="width: 100%;" type="button">
-              📋 Copy Trip Settlement for Group Chat
+              📋 Copy Trip Settlement for WhatsApp
             </button>
           </div>
         </section>
@@ -355,10 +409,10 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="ocr-modal-title">Scan Paper Receipt (OCR)</h3>
-          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+          <button class="key key--icon btn-close-modal" aria-label="Close modal">✕</button>
         </div>
         <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);">
-          Take a photo with your mobile camera or upload an image. Optical recognition runs 100% on your device for complete privacy.
+          Take a photo with your mobile camera or upload an image. The smart filter extracts genuine food items and strips address, tax, and bill numbers.
         </p>
         
         <div class="form-group">
@@ -368,28 +422,36 @@
         <!-- Processing Progress Bar -->
         <div id="ocr-progress-container" style="display: none; margin: var(--space-md) 0;">
           <div class="label" id="ocr-progress-label">Recognizing text: 0%</div>
-          <div style="width: 100%; height: 6px; background: var(--color-paper-2); border-radius: 3px; overflow: hidden;">
-            <div id="ocr-progress-bar" style="width: 0%; height: 100%; background: var(--color-accent); transition: width var(--dur-micro) var(--ease-out);"></div>
+          <div class="progress-track">
+            <div id="ocr-progress-bar" class="progress-fill"></div>
           </div>
         </div>
 
-        <!-- Extracted Items Review Table -->
+        <!-- Extracted Items Review Table with Checkboxes -->
         <div id="ocr-results-container" style="display: none; margin-top: var(--space-md);">
-          <h4 style="font-size: var(--text-sm); margin-bottom: var(--space-xs);">Detected Items (Review & Edit):</h4>
-          <table class="data-table" id="ocr-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Price</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="ocr-tbody">
-              <!-- Dynamically populated detected items -->
-            </tbody>
-          </table>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+            <h4 style="font-size: var(--text-sm); margin: 0;">Detected Dishes (Select & Edit):</h4>
+            <button id="btn-ocr-toggle-all" class="key key--sm" type="button">Select All</button>
+          </div>
+          
+          <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+            <table class="data-table" id="ocr-table">
+              <thead>
+                <tr>
+                  <th style="width: 10%;">Include</th>
+                  <th style="width: 55%;">Dish Name</th>
+                  <th style="width: 25%;">Price</th>
+                  <th style="width: 10%;"></th>
+                </tr>
+              </thead>
+              <tbody id="ocr-tbody">
+                <!-- Dynamically populated detected items -->
+              </tbody>
+            </table>
+          </div>
+          
           <button id="btn-import-ocr-items" class="key key--primary" style="width: 100%; margin-top: var(--space-md);" type="button">
-            ✔ Import Detected Items into Bill
+            ✔ Import Selected Dishes into Bill
           </button>
         </div>
       </div>
@@ -400,13 +462,13 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="paste-modal-title">Quick-Paste Receipt Text</h3>
-          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+          <button class="key key--icon btn-close-modal" aria-label="Close modal">✕</button>
         </div>
         <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-xs);">
-          Paste text copied from digital bills, SMS, or delivery apps (e.g. <code>Burger 12.50</code>):
+          Paste text copied from digital bills, SMS, Swiggy, Zomato, or UberEats (e.g. <code>Masala Dosa 149.00</code>):
         </p>
         <div class="form-group">
-          <textarea id="raw-receipt-textarea" class="input mono" rows="7" placeholder="Margherita Pizza 16.50&#10;Draft Beer 7.00&#10;Tiramisu 8.50"></textarea>
+          <textarea id="raw-receipt-textarea" class="input mono" rows="7" placeholder="1. Masala Dosa 149.00&#10;2. Paneer Roll 249.00&#10;3. Filter Coffee 45.00"></textarea>
         </div>
         <button id="btn-parse-pasted-text" class="key key--primary" style="width: 100%;" type="button">
           Parse and Add to Bill
@@ -419,12 +481,12 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="expense-modal-title">Log Trip Expense</h3>
-          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+          <button class="key key--icon btn-close-modal" aria-label="Close modal">✕</button>
         </div>
         <form id="form-add-expense">
           <div class="form-group">
             <label for="expense-title" class="label">Description / Title</label>
-            <input id="expense-title" class="input" type="text" placeholder="e.g. Airbnb, Groceries, Rental Car" required>
+            <input id="expense-title" class="input" type="text" placeholder="e.g. Airbnb, Groceries, Fuel" required>
           </div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
@@ -451,26 +513,58 @@
       </div>
     </div>
 
-    <!-- Dynamic Payment QR Modal -->
+    <!-- Enhanced UPI Direct Bank Payment QR Modal -->
     <div id="modal-qr" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
-      <div class="modal-content" style="text-align: center;">
+      <div class="modal-content upi-modal-content">
         <div class="modal-header">
-          <h3 id="qr-modal-title">Instant Payment</h3>
-          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+          <div>
+            <h3 id="qr-modal-title">Instant Bank Payment</h3>
+            <span class="upi-secure-badge">🔒 Direct UPI Bank Transfer</span>
+          </div>
+          <button class="key key--icon btn-close-modal" aria-label="Close modal">✕</button>
         </div>
-        <p id="qr-modal-desc" style="font-size: var(--text-sm); margin-bottom: var(--space-sm);">
-          Scan with your camera or payment app to settle up directly:
-        </p>
+
+        <!-- Recipient & Amount Badge -->
+        <div class="upi-recipient-card">
+          <div class="upi-avatar-initial" id="qr-avatar-initial">A</div>
+          <div>
+            <div style="font-size: var(--text-xs); color: var(--color-muted);">Paying to</div>
+            <div style="font-weight: 700; font-size: var(--text-base);" id="qr-payee-name">Alice</div>
+            <div class="mono" style="font-size: 11px; color: var(--color-accent);" id="qr-payee-handle">alice@okhdfcbank</div>
+          </div>
+        </div>
+
+        <div class="upi-amount-display">
+          <span style="font-size: var(--text-sm); color: var(--color-muted); margin-bottom: 2px;">Amount to Transfer:</span>
+          <span class="mono" id="qr-amount-display" style="font-size: 2.2rem; font-weight: 700; color: var(--color-ink);">₹0.00</span>
+        </div>
+
+        <!-- Dynamic QR Code Container -->
         <div id="qr-code-display" class="qr-container">
           <!-- QRCode.js renders SVG/Canvas here -->
         </div>
-        <div class="mono" id="qr-amount-display" style="font-size: var(--text-lg); font-weight: 600; color: var(--color-accent); margin-bottom: var(--space-xs);">
-          $0.00
+
+        <!-- Supported UPI Apps Badges -->
+        <div class="upi-apps-row">
+          <span class="upi-app-pill">Google Pay</span>
+          <span class="upi-app-pill">PhonePe</span>
+          <span class="upi-app-pill">Paytm</span>
+          <span class="upi-app-pill">BHIM UPI</span>
+          <span class="upi-app-pill">Any Bank App</span>
         </div>
-        <p id="qr-handle-display" style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);"></p>
-        <button id="btn-copy-payment-link" class="key" type="button" style="width: 100%;">
-          Copy Payment URI / Link
-        </button>
+
+        <p style="font-size: 11px; color: var(--color-muted); margin: var(--space-sm) 0 var(--space-md); line-height: 1.4;">
+          Point any UPI scanner at this QR code. The exact amount will be pre-filled and deposited directly into the recipient's bank account.
+        </p>
+
+        <div class="form-row">
+          <button id="btn-open-upi-intent" class="key key--primary" type="button" style="flex: 1;">
+            📲 Open in UPI App
+          </button>
+          <button id="btn-copy-payment-link" class="key" type="button" style="flex: 1;">
+            📋 Copy UPI ID
+          </button>
+        </div>
       </div>
     </div>
 
@@ -479,7 +573,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="new-trip-modal-title">Create New Trip / Group</h3>
-          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+          <button class="key key--icon btn-close-modal" aria-label="Close modal">✕</button>
         </div>
         <form id="form-new-trip">
           <div class="form-group">
@@ -489,10 +583,10 @@
           <div class="form-group">
             <label for="new-trip-currency" class="label">Base Currency</label>
             <select id="new-trip-currency" class="input">
-              <option value="$" selected>$ USD / CAD / AUD</option>
+              <option value="₹" selected>₹ INR (Indian Rupee)</option>
+              <option value="$">$ USD / CAD / AUD</option>
               <option value="€">€ EUR</option>
               <option value="£">£ GBP</option>
-              <option value="₹">₹ INR</option>
               <option value="¥">¥ JPY</option>
               <option value="CHF">CHF Swiss Franc</option>
             </select>
@@ -521,4 +615,3 @@
   </script>
 </body>
 </html>
-
