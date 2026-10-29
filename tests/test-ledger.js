@@ -3,8 +3,23 @@
  */
 import {
   calculateNetBalances,
-  calculateSettlements
+  calculateSettlements,
+  createTrip,
+  updateTripDetails,
+  removeMemberFromTrip,
+  getActiveTrip
 } from '../js/ledger.js';
+
+// Polyfill localStorage for headless node test runner
+if (!globalThis.localStorage) {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) || null,
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear()
+  };
+}
 
 let passed = 0;
 let failed = 0;
@@ -127,6 +142,33 @@ export function runLedgerTests() {
     const net = calculateNetBalances(tripOdd);
     const sumNet = Math.round((Object.values(net).reduce((a, b) => a + b, 0)) * 100) / 100;
     assert(sumNet === 0, `Net balances sum is strictly 0.00 (got ${sumNet})`);
+  }
+
+  // Test 5: Create trip with location and currency
+  {
+    const trip = createTrip({
+      name: 'Goa Holiday',
+      location: 'Goa, India',
+      currency: '₹',
+      members: [{ name: 'Alice' }, { name: 'Bob' }, { name: 'Charlie' }]
+    });
+    assert(trip.name === 'Goa Holiday', 'Trip name saved');
+    assert(trip.location === 'Goa, India', 'Trip location saved');
+    assert(trip.currency === '₹', 'Trip currency saved');
+    assert(trip.members.length === 3, 'Trip has 3 members');
+
+    // Test 6: Update trip details
+    const updated = updateTripDetails(trip.id, {
+      name: 'South Goa Beach Retreat',
+      location: 'Palolem, Goa'
+    });
+    assert(updated.name === 'South Goa Beach Retreat', 'Updated trip name');
+    assert(updated.location === 'Palolem, Goa', 'Updated trip location');
+
+    // Test 7: Remove member from trip
+    const afterRemoval = removeMemberFromTrip(trip.id, 'Bob');
+    assert(afterRemoval.members.length === 2, 'Member removed from trip');
+    assert(!afterRemoval.members.some(m => m.name === 'Bob'), 'Bob no longer in trip members');
   }
 
   return { passed, failed };

@@ -21,7 +21,9 @@ import {
   getActiveTripId,
   setActiveTripId,
   createTrip,
+  updateTripDetails,
   addMemberToTrip,
+  removeMemberFromTrip,
   addExpenseToTrip,
   deleteExpenseFromTrip,
   resetTripExpenses,
@@ -151,8 +153,12 @@ const btnParsePastedText = document.getElementById('btn-parse-pasted-text');
 // Group Ledger Elements
 const tripSelector = document.getElementById('trip-selector');
 const btnNewTrip = document.getElementById('btn-new-trip');
+const btnEditTrip = document.getElementById('btn-edit-trip');
 const btnLoadSampleTrip = document.getElementById('btn-load-sample-trip');
 const btnResetTrip = document.getElementById('btn-reset-trip');
+const tripDisplayName = document.getElementById('trip-display-name');
+const tripDisplayLocation = document.getElementById('trip-display-location');
+const tripDisplayCurrency = document.getElementById('trip-display-currency');
 const tripMembersList = document.getElementById('trip-members-list');
 const newTripMemberName = document.getElementById('new-trip-member-name');
 const newTripMemberHandle = document.getElementById('new-trip-member-handle');
@@ -177,8 +183,13 @@ const expenseSplitMembers = document.getElementById('expense-split-members');
 
 const modalNewTrip = document.getElementById('modal-new-trip');
 const formNewTrip = document.getElementById('form-new-trip');
+const editTripIdInput = document.getElementById('edit-trip-id');
+const newTripModalTitle = document.getElementById('new-trip-modal-title');
 const newTripNameInput = document.getElementById('new-trip-name');
+const newTripLocationInput = document.getElementById('new-trip-location');
 const newTripCurrencySelect = document.getElementById('new-trip-currency');
+const btnSaveTripSubmit = document.getElementById('btn-save-trip-submit');
+const discountLabel = document.getElementById('discount-label');
 
 const modalQr = document.getElementById('modal-qr');
 const qrCodeDisplay = document.getElementById('qr-code-display');
@@ -282,12 +293,59 @@ function initTabs() {
 }
 
 /* ==========================================================================
+   Currency Configuration & Dynamic Formatting
+   ========================================================================== */
+
+const CURRENCY_CONFIG = {
+  '₹': { name: 'INR', unit: '₹1', subUnit: 'Paise', symbol: '₹' },
+  '$': { name: 'USD', unit: '$1', subUnit: 'Cents', symbol: '$' },
+  '€': { name: 'EUR', unit: '€1', subUnit: 'Cents', symbol: '€' },
+  '£': { name: 'GBP', unit: '£1', subUnit: 'Pence', symbol: '£' },
+  '¥': { name: 'JPY', unit: '¥1', subUnit: 'Whole Yen', symbol: '¥' },
+  'CHF': { name: 'CHF', unit: 'CHF 1', subUnit: 'Rappen', symbol: 'CHF ' }
+};
+
+export function updateCurrencyLabels(cur) {
+  const cfg = CURRENCY_CONFIG[cur] || { name: cur, unit: `${cur}1`, subUnit: 'Decimals', symbol: cur };
+
+  // 1. Update discount label
+  if (discountLabel) {
+    discountLabel.textContent = `Discount (${cfg.symbol.trim()} off)`;
+  }
+
+  // 2. Update rounding dropdown options dynamically
+  if (roundingSelect) {
+    const currentVal = roundingSelect.value || 'exact';
+    roundingSelect.innerHTML = `
+      <option value="exact">Exact ${cfg.subUnit} (${cfg.symbol.trim()}0.00)</option>
+      <option value="up-whole">Round Up to ${cfg.unit}</option>
+      <option value="up-half">Round Up ${cfg.symbol.trim()}0.50</option>
+    `;
+    roundingSelect.value = currentVal;
+  }
+
+  // 3. Update input currency symbol labels
+  document.querySelectorAll('.currency-symbol-label').forEach(el => {
+    el.textContent = cfg.symbol.trim();
+  });
+
+  // 4. Update receipt badge
+  if (receiptCurrencyTag) {
+    receiptCurrencyTag.textContent = `${cfg.name} (${cfg.symbol.trim()})`;
+  }
+}
+
+/* ==========================================================================
    Quick Split Controller & View
    ========================================================================== */
 
 function initQuickSplit() {
+  currencySelect.value = quickState.currency;
+  updateCurrencyLabels(quickState.currency);
+
   currencySelect.addEventListener('change', (e) => {
     quickState.currency = e.target.value;
+    updateCurrencyLabels(quickState.currency);
     renderQuickSplit();
   });
 
@@ -781,6 +839,7 @@ function loadSampleDinner() {
   quickState.payerHandle = 'alice@okhdfcbank';
   quickPayerHandleInput.value = 'alice@okhdfcbank';
 
+  updateCurrencyLabels('₹');
   renderQuickSplit();
   showToast('Loaded sample dinner with UPI IDs!');
 }
@@ -952,19 +1011,48 @@ function initGroupLedger() {
 
   btnNewTrip.addEventListener('click', () => {
     modalNewTrip.classList.add('open');
+    if (editTripIdInput) editTripIdInput.value = '';
+    if (newTripModalTitle) newTripModalTitle.textContent = 'Create New Trip / Group';
+    if (btnSaveTripSubmit) btnSaveTripSubmit.textContent = 'Create Group';
     newTripNameInput.value = '';
+    if (newTripLocationInput) newTripLocationInput.value = '';
+    newTripCurrencySelect.value = '₹';
+    newTripNameInput.focus();
   });
+
+  if (btnEditTrip) {
+    btnEditTrip.addEventListener('click', () => {
+      const trip = getActiveTrip();
+      if (!trip) return;
+      modalNewTrip.classList.add('open');
+      if (editTripIdInput) editTripIdInput.value = trip.id;
+      if (newTripModalTitle) newTripModalTitle.textContent = 'Edit Trip Details & Location';
+      if (btnSaveTripSubmit) btnSaveTripSubmit.textContent = 'Save Changes';
+      newTripNameInput.value = trip.name;
+      if (newTripLocationInput) newTripLocationInput.value = trip.location || '';
+      newTripCurrencySelect.value = trip.currency || '₹';
+      newTripNameInput.focus();
+    });
+  }
 
   formNewTrip.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = newTripNameInput.value.trim();
+    const loc = newTripLocationInput ? newTripLocationInput.value.trim() : '';
     const cur = newTripCurrencySelect.value;
+    const editId = editTripIdInput ? editTripIdInput.value : '';
     if (!name) return;
 
-    createTrip({ name, currency: cur });
+    if (editId) {
+      updateTripDetails(editId, { name, location: loc, currency: cur });
+      showToast(`Updated trip "${name}"!`);
+    } else {
+      createTrip({ name, location: loc, currency: cur });
+      showToast(`Created trip "${name}"!`);
+    }
+
     modalNewTrip.classList.remove('open');
     renderGroupLedger();
-    showToast(`Created trip "${name}"!`);
   });
 
   btnAddTripMember.addEventListener('click', addMemberToActiveTrip);
@@ -1030,6 +1118,35 @@ function addMemberToActiveTrip() {
   newTripMemberName.value = '';
   newTripMemberHandle.value = '';
   renderGroupLedger();
+  showToast(`Added "${name}" to trip!`);
+}
+
+function confirmAndRemoveTripMember(tripId, memberName) {
+  const trip = getActiveTrip();
+  if (!trip) return;
+
+  if (trip.members.length <= 1) {
+    showToast('At least one member is required in the trip.');
+    return;
+  }
+
+  const isPayer = trip.expenses.some(e => e.paidBy.toLowerCase() === memberName.toLowerCase());
+  const isInSplit = trip.expenses.some(e => (e.splitBetween || []).some(name => name.toLowerCase() === memberName.toLowerCase()));
+
+  if (isPayer) {
+    showToast(`Cannot remove "${memberName}" because they paid for logged expenses. Delete or reassign those expenses first.`);
+    return;
+  }
+
+  if (isInSplit) {
+    if (!confirm(`"${memberName}" is included in the split of some logged expenses. Removing them will take them off those expenses. Continue?`)) {
+      return;
+    }
+  }
+
+  removeMemberFromTrip(tripId, memberName);
+  renderGroupLedger();
+  showToast(`Removed "${memberName}" from trip.`);
 }
 
 function openAddExpenseModal(trip) {
@@ -1101,19 +1218,34 @@ function renderGroupLedger() {
   const activeTrip = getActiveTrip();
   if (!activeTrip) return;
 
-  const cur = activeTrip.currency || '$';
+  const cur = activeTrip.currency || '₹';
 
   // 1. Populate Trip Switcher
   tripSelector.innerHTML = '';
   trips.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t.id;
-    opt.textContent = `${t.name} (${t.currency})`;
+    const locStr = t.location ? ` (${t.location})` : '';
+    opt.textContent = `${t.name}${locStr} • ${t.currency}`;
     if (t.id === activeTrip.id) opt.selected = true;
     tripSelector.appendChild(opt);
   });
 
-  // 2. Render Participants List
+  // 1b. Update Trip Banner (Name, Location, Currency)
+  if (tripDisplayName) tripDisplayName.textContent = activeTrip.name;
+  if (tripDisplayLocation) {
+    if (activeTrip.location) {
+      tripDisplayLocation.style.display = 'inline-flex';
+      tripDisplayLocation.textContent = `📍 ${activeTrip.location}`;
+    } else {
+      tripDisplayLocation.style.display = 'none';
+    }
+  }
+  if (tripDisplayCurrency) {
+    tripDisplayCurrency.textContent = `${activeTrip.currency} (${activeTrip.currency === '₹' ? 'INR' : 'Trip'})`;
+  }
+
+  // 2. Render Participants List with Remove Button
   tripMembersList.innerHTML = '';
   activeTrip.members.forEach((m, idx) => {
     const chip = document.createElement('div');
@@ -1122,7 +1254,11 @@ function renderGroupLedger() {
       <span class="avatar-circle avatar-${idx % 6}">${escapeHtml(m.name.charAt(0).toUpperCase())}</span>
       <span class="avatar-chip-name">${escapeHtml(m.name)}</span>
       ${m.handle ? `<span class="avatar-chip-upi mono">(${escapeHtml(m.handle)})</span>` : ''}
+      <button class="avatar-chip-remove" type="button" title="Remove ${escapeHtml(m.name)} from trip">✕</button>
     `;
+    chip.querySelector('.avatar-chip-remove').addEventListener('click', () => {
+      confirmAndRemoveTripMember(activeTrip.id, m.name);
+    });
     tripMembersList.appendChild(chip);
   });
 
@@ -1239,6 +1375,7 @@ function renderGroupLedger() {
 function loadSampleTrip() {
   const trip = createTrip({
     name: 'Goa Weekend 2026',
+    location: 'Goa, India',
     currency: '₹',
     members: [
       { name: 'Alice', handle: 'alice@oksbi' },

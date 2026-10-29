@@ -66,12 +66,13 @@ export function getActiveTrip(tripId = null) {
   // If no trip exists, initialize a default trip
   if (!trip) {
     trip = createTrip({
-      name: 'Weekend Getaway',
-      currency: '$',
+      name: 'Goa Weekend 2026',
+      location: 'Goa, India',
+      currency: '₹',
       members: [
-        { name: 'Alice', handle: 'alice@upi' },
-        { name: 'Bob', handle: 'bob@upi' },
-        { name: 'Charlie', handle: '' }
+        { name: 'Alice', handle: 'alice@oksbi' },
+        { name: 'Bob', handle: 'bob@okhdfc' },
+        { name: 'Charlie', handle: 'charlie@upi' }
       ]
     });
   }
@@ -81,14 +82,15 @@ export function getActiveTrip(tripId = null) {
 /**
  * Creates a new trip and saves it
  */
-export function createTrip({ name = 'New Trip', currency = '$', members = [] }) {
+export function createTrip({ name = 'New Trip', location = '', currency = '₹', members = [] }) {
   const trips = getAllTrips();
   const newTrip = {
     id: 'trip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
     name: name.trim() || 'Untitled Trip',
-    currency: currency || '$',
+    location: (location || '').trim(),
+    currency: currency || '₹',
     createdAt: new Date().toISOString(),
-    members: members.length > 0 ? members : [{ name: 'Me', handle: '' }],
+    members: members.length > 0 ? members : [{ name: 'Alice', handle: '' }],
     expenses: []
   };
 
@@ -96,6 +98,48 @@ export function createTrip({ name = 'New Trip', currency = '$', members = [] }) 
   saveAllTrips(trips);
   setActiveTripId(newTrip.id);
   return newTrip;
+}
+
+/**
+ * Updates a trip's name, location, or currency
+ */
+export function updateTripDetails(tripId, { name, location, currency } = {}) {
+  const trips = getAllTrips();
+  const trip = trips.find(t => t.id === tripId);
+  if (!trip) return null;
+
+  if (name !== undefined && name.trim()) trip.name = name.trim();
+  if (location !== undefined) trip.location = location.trim();
+  if (currency !== undefined && currency.trim()) trip.currency = currency.trim();
+
+  saveAllTrips(trips);
+  return trip;
+}
+
+/**
+ * Removes a member from a trip and cleans up split dependencies
+ */
+export function removeMemberFromTrip(tripId, memberName) {
+  const trimmed = (memberName || '').trim();
+  if (!trimmed) return null;
+
+  const trips = getAllTrips();
+  const trip = trips.find(t => t.id === tripId);
+  if (!trip) return null;
+
+  // Filter out member
+  trip.members = trip.members.filter(m => m.name.toLowerCase() !== trimmed.toLowerCase());
+
+  // Also remove from any expense splitBetween lists
+  trip.expenses.forEach(exp => {
+    exp.splitBetween = (exp.splitBetween || []).filter(name => name.toLowerCase() !== trimmed.toLowerCase());
+    if (exp.splitBetween.length === 0 && trip.members.length > 0) {
+      exp.splitBetween = trip.members.map(m => m.name);
+    }
+  });
+
+  saveAllTrips(trips);
+  return trip;
 }
 
 /**
