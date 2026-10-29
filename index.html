@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tabby — Bill Splitter & Shared Expense Ledger</title>
+  <meta name="description" content="Anti-slop, privacy-first bill splitter and trip expense ledger with in-browser OCR receipt scanning and debt minimization.">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+
+  <!-- Hallmark Cobalt Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Core Styles -->
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- In-Browser OCR & Dynamic QR Libraries (Client-Side, zero account required) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-badge">TABBY // SPLIT</span>
+        <h1 class="brand-title">Bill Splitter</h1>
+      </div>
+      <div class="header-actions">
+        <button id="theme-toggle" class="key key--sm" title="Toggle Dark / Light Theme" aria-label="Toggle theme">
+          <span id="theme-icon">🌙</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="mode-tabs" aria-label="Split Modes">
+      <button class="tab-btn active" data-tab="quick-split">Quick Split (Meals)</button>
+      <button class="tab-btn" data-tab="group-ledger">Group Ledger (Trips)</button>
+    </nav>
+
+    <!-- ======================================================================
+         MODE 1: QUICK SPLIT VIEW
+         ====================================================================== -->
+    <main id="view-quick-split" class="view-panel active">
+      <div class="grid-two-col">
+        <!-- Left: Inputs & Items -->
+        <section class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Bill Setup</h2>
+            <div class="form-row">
+              <button id="btn-load-sample-bill" class="key key--sm" type="button">Load Sample Dinner</button>
+              <button id="btn-open-scanner" class="key key--sm key--primary" type="button">📷 Scan Receipt</button>
+            </div>
+          </div>
+
+          <!-- Quick Parameters -->
+          <div class="form-row" style="margin-bottom: var(--space-md);">
+            <div class="form-group" style="flex: 1;">
+              <label for="currency-select" class="label">Currency</label>
+              <select id="currency-select" class="input">
+                <option value="$" selected>$ USD / CAD / AUD</option>
+                <option value="€">€ EUR</option>
+                <option value="£">£ GBP</option>
+                <option value="₹">₹ INR</option>
+                <option value="¥">¥ JPY / CNY</option>
+                <option value="CHF">CHF Swiss Franc</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="split-style-select" class="label">Split Style</label>
+              <select id="split-style-select" class="input">
+                <option value="itemized" selected>Itemized Dishes</option>
+                <option value="equal">Equal Split</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Equal Split Specific Input -->
+          <div id="equal-split-controls" class="form-group" style="display: none;">
+            <div class="form-row">
+              <div style="flex: 1;">
+                <label for="equal-subtotal" class="label">Subtotal Amount</label>
+                <input id="equal-subtotal" class="input mono" type="number" step="0.01" min="0" placeholder="0.00">
+              </div>
+              <div style="flex: 1;">
+                <label for="equal-people-count" class="label">Number of People</label>
+                <input id="equal-people-count" class="input mono" type="number" min="1" max="100" value="3">
+              </div>
+            </div>
+          </div>
+
+          <!-- Itemized Split Specific Section -->
+          <div id="itemized-split-controls">
+            <!-- Participants list -->
+            <div class="form-group">
+              <label class="label">People at the Table</label>
+              <div id="quick-people-chips" class="preset-chips" style="margin-bottom: var(--space-xs);">
+                <!-- Dynamic Person Chips injected here -->
+              </div>
+              <div class="form-row">
+                <input id="new-person-name" class="input" type="text" placeholder="Add person (e.g. Alice)">
+                <button id="btn-add-person" class="key" type="button">+ Add</button>
+              </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="form-group">
+              <div class="panel-header" style="margin-top: var(--space-md); margin-bottom: var(--space-xs);">
+                <label class="label" style="margin: 0;">Dishes & Drinks</label>
+                <button id="btn-open-paste-modal" class="key key--sm" type="button">📋 Paste Text</button>
+              </div>
+              
+              <table class="data-table" id="dishes-table">
+                <thead>
+                  <tr>
+                    <th style="width: 42%;">Item</th>
+                    <th style="width: 22%;">Price</th>
+                    <th style="width: 28%;">Shared By</th>
+                    <th style="width: 8%;"></th>
+                  </tr>
+                </thead>
+                <tbody id="dishes-tbody">
+                  <!-- Dish rows injected here -->
+                </tbody>
+              </table>
+
+              <div class="form-row" style="margin-top: var(--space-sm);">
+                <input id="new-dish-name" class="input" type="text" placeholder="Item name (e.g. Pasta)" style="flex: 2;">
+                <input id="new-dish-price" class="input mono" type="number" step="0.01" min="0" placeholder="Price" style="flex: 1;">
+                <button id="btn-add-dish" class="key key--primary" type="button">+ Add Item</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tax, Tip & Discounts -->
+          <div class="form-group" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule);">
+            <label class="label">Tip Percentage</label>
+            <div class="preset-chips" id="tip-presets">
+              <button class="chip-btn" data-tip="0">0%</button>
+              <button class="chip-btn" data-tip="10">10%</button>
+              <button class="chip-btn active" data-tip="15">15%</button>
+              <button class="chip-btn" data-tip="18">18%</button>
+              <button class="chip-btn" data-tip="20">20%</button>
+              <input id="custom-tip-input" class="input mono" type="number" min="0" max="100" placeholder="Custom %" style="width: 100px; padding: 4px 8px; font-size: var(--text-xs);">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="tax-percent" class="label">Tax (%)</label>
+              <input id="tax-percent" class="input mono" type="number" step="0.1" min="0" value="8.0" placeholder="Tax %">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="discount-input" class="label">Discount ($ off)</label>
+              <input id="discount-input" class="input mono" type="number" step="0.01" min="0" value="0" placeholder="0.00">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="rounding-select" class="label">Rounding</label>
+              <select id="rounding-select" class="input">
+                <option value="exact" selected>Exact Cents</option>
+                <option value="up-whole">Round Up $1</option>
+                <option value="up-half">Round Up 0.50</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Payer info for QR generation -->
+          <div class="form-group" style="margin-top: var(--space-sm);">
+            <div class="form-row">
+              <div style="flex: 1;">
+                <label for="quick-payer-select" class="label">Who Paid in Full?</label>
+                <select id="quick-payer-select" class="input">
+                  <option value="">I paid (Device Owner)</option>
+                </select>
+              </div>
+              <div style="flex: 1;">
+                <label for="quick-payer-handle" class="label">Payment Handle (UPI ID / Venmo)</label>
+                <input id="quick-payer-handle" class="input" type="text" placeholder="name@upi or @username">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right: Real-time Breakdown & Share Summary -->
+        <section class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Calculation Summary</h2>
+            <button id="btn-export-to-trip" class="key key--sm" type="button" title="Push this meal to Group Ledger">➡ Export to Trip</button>
+          </div>
+
+          <!-- Total Metrics in Graphite Card -->
+          <div class="summary-graphite">
+            <div class="summary-row">
+              <span>Items Subtotal:</span>
+              <span id="summary-subtotal" class="mono">$0.00</span>
+            </div>
+            <div class="summary-row" id="row-discount" style="display: none;">
+              <span>Discount Applied:</span>
+              <span id="summary-discount" class="mono" style="color: var(--color-danger);">- $0.00</span>
+            </div>
+            <div class="summary-row">
+              <span>Tax (<span id="summary-tax-rate">8%</span>):</span>
+              <span id="summary-tax" class="mono">$0.00</span>
+            </div>
+            <div class="summary-row">
+              <span>Tip (<span id="summary-tip-rate">15%</span>):</span>
+              <span id="summary-tip" class="mono">$0.00</span>
+            </div>
+            <div class="summary-row total-row">
+              <span>Total Bill:</span>
+              <span id="summary-total" class="mono amount">$0.00</span>
+            </div>
+          </div>
+
+          <!-- Person Breakdown Cards -->
+          <div style="margin-top: var(--space-lg);">
+            <h3 style="font-size: var(--text-md); margin-bottom: var(--space-sm);">Individual Breakdown</h3>
+            <div id="person-breakdown-list">
+              <!-- Dynamically populated person cards -->
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-row" style="margin-top: var(--space-md); flex-wrap: wrap;">
+            <button id="btn-copy-summary" class="key key--primary" style="flex: 1;" type="button">
+              📋 Copy for WhatsApp / SMS
+            </button>
+            <button id="btn-show-bill-qr" class="key" type="button">
+              📲 Show Payment QR
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         MODE 2: GROUP TRIP / ROOMMATE LEDGER VIEW
+         ====================================================================== -->
+    <main id="view-group-ledger" class="view-panel">
+      <div class="grid-two-col">
+        <!-- Left: Trip Management & Expenses -->
+        <section class="panel">
+          <div class="panel-header">
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <label for="trip-selector" class="label" style="margin: 0;">Active Trip:</label>
+              <select id="trip-selector" class="input" style="width: auto; min-width: 160px;">
+                <!-- Dynamically populated trips -->
+              </select>
+            </div>
+            <div class="form-row">
+              <button id="btn-load-sample-trip" class="key key--sm" type="button">Load Sample Trip</button>
+              <button id="btn-new-trip" class="key key--sm key--primary" type="button">+ New Trip</button>
+            </div>
+          </div>
+
+          <!-- Trip Members -->
+          <div class="form-group" style="margin-top: var(--space-md);">
+            <label class="label">Trip Participants</label>
+            <div id="trip-members-list" class="preset-chips" style="margin-bottom: var(--space-xs);">
+              <!-- Trip member chips -->
+            </div>
+            <div class="form-row">
+              <input id="new-trip-member-name" class="input" type="text" placeholder="Member name (e.g. David)">
+              <input id="new-trip-member-handle" class="input" type="text" placeholder="Payment handle (optional)">
+              <button id="btn-add-trip-member" class="key" type="button">+ Add</button>
+            </div>
+          </div>
+
+          <!-- Expenses List -->
+          <div class="form-group" style="margin-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-md);">
+            <div class="panel-header">
+              <h3 style="font-size: var(--text-md); margin: 0;">Expenses Log</h3>
+              <button id="btn-open-add-expense" class="key key--sm key--primary" type="button">+ Log Expense</button>
+            </div>
+
+            <div id="trip-expenses-empty" style="padding: var(--space-lg); text-align: center; color: var(--color-muted);">
+              No expenses recorded yet. Click "+ Log Expense" or "Load Sample Trip" above!
+            </div>
+
+            <table class="data-table" id="trip-expenses-table" style="display: none;">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Paid By</th>
+                  <th>Split With</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="trip-expenses-tbody">
+                <!-- Dynamically injected expense rows -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Right: Net Balances & Debt Minimization Settlement -->
+        <section class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Debt Settlement Plan</h2>
+            <button id="btn-reset-trip" class="key key--sm key--danger" type="button">Reset Trip</button>
+          </div>
+
+          <!-- Total Group Spending in Graphite Card -->
+          <div class="summary-graphite">
+            <div class="summary-row">
+              <span>Total Trip Spending:</span>
+              <span id="trip-total-spend" class="mono">$0.00</span>
+            </div>
+            <div class="summary-row">
+              <span>Total Expenses Logged:</span>
+              <span id="trip-expense-count" class="mono">0</span>
+            </div>
+          </div>
+
+          <!-- Individual Net Balances -->
+          <div style="margin-top: var(--space-md);">
+            <h3 style="font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin-bottom: var(--space-xs);">Net Balances (+ Creditor / - Debtor)</h3>
+            <div id="trip-balances-list">
+              <!-- Dynamically injected member net balances -->
+            </div>
+          </div>
+
+          <!-- Minimized Settlement Payments -->
+          <div style="margin-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-md);">
+            <h3 style="font-size: var(--text-md); margin-bottom: var(--space-sm);">Optimal Repayment Schedule</h3>
+            <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);">
+              Calculated using greedy debt minimization to settle all balances in the fewest possible bank transactions.
+            </p>
+            <div id="trip-settlement-list">
+              <!-- Dynamically injected settlement payment instructions -->
+            </div>
+          </div>
+
+          <!-- Copy Trip Summary -->
+          <div style="margin-top: var(--space-lg);">
+            <button id="btn-copy-trip-summary" class="key key--primary" style="width: 100%;" type="button">
+              📋 Copy Trip Settlement for Group Chat
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         MODALS: OCR SCANNER, QUICK PASTE, LOG EXPENSE, PAYMENT QR
+         ====================================================================== -->
+
+    <!-- OCR Receipt Scanner Modal -->
+    <div id="modal-ocr" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="ocr-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="ocr-modal-title">Scan Paper Receipt (OCR)</h3>
+          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+        <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);">
+          Take a photo with your mobile camera or upload an image. Optical recognition runs 100% on your device for complete privacy.
+        </p>
+        
+        <div class="form-group">
+          <input type="file" id="ocr-file-input" accept="image/*" capture="environment" class="input">
+        </div>
+
+        <!-- Processing Progress Bar -->
+        <div id="ocr-progress-container" style="display: none; margin: var(--space-md) 0;">
+          <div class="label" id="ocr-progress-label">Recognizing text: 0%</div>
+          <div style="width: 100%; height: 6px; background: var(--color-paper-2); border-radius: 3px; overflow: hidden;">
+            <div id="ocr-progress-bar" style="width: 0%; height: 100%; background: var(--color-accent); transition: width var(--dur-micro) var(--ease-out);"></div>
+          </div>
+        </div>
+
+        <!-- Extracted Items Review Table -->
+        <div id="ocr-results-container" style="display: none; margin-top: var(--space-md);">
+          <h4 style="font-size: var(--text-sm); margin-bottom: var(--space-xs);">Detected Items (Review & Edit):</h4>
+          <table class="data-table" id="ocr-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Price</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ocr-tbody">
+              <!-- Dynamically populated detected items -->
+            </tbody>
+          </table>
+          <button id="btn-import-ocr-items" class="key key--primary" style="width: 100%; margin-top: var(--space-md);" type="button">
+            ✔ Import Detected Items into Bill
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Paste Raw Text Modal -->
+    <div id="modal-paste" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="paste-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="paste-modal-title">Quick-Paste Receipt Text</h3>
+          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+        <p style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-xs);">
+          Paste text copied from digital bills, SMS, or delivery apps (e.g. <code>Burger 12.50</code>):
+        </p>
+        <div class="form-group">
+          <textarea id="raw-receipt-textarea" class="input mono" rows="7" placeholder="Margherita Pizza 16.50&#10;Draft Beer 7.00&#10;Tiramisu 8.50"></textarea>
+        </div>
+        <button id="btn-parse-pasted-text" class="key key--primary" style="width: 100%;" type="button">
+          Parse and Add to Bill
+        </button>
+      </div>
+    </div>
+
+    <!-- Add Trip Expense Modal -->
+    <div id="modal-add-expense" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="expense-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="expense-modal-title">Log Trip Expense</h3>
+          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+        <form id="form-add-expense">
+          <div class="form-group">
+            <label for="expense-title" class="label">Description / Title</label>
+            <input id="expense-title" class="input" type="text" placeholder="e.g. Airbnb, Groceries, Rental Car" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="expense-amount" class="label">Amount</label>
+              <input id="expense-amount" class="input mono" type="number" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="expense-payer" class="label">Paid By</label>
+              <select id="expense-payer" class="input" required>
+                <!-- Dynamic Trip Members -->
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="label">Split Between Who?</label>
+            <div id="expense-split-members" class="preset-chips">
+              <!-- Member selection checkboxes -->
+            </div>
+          </div>
+          <button type="submit" class="key key--primary" style="width: 100%; margin-top: var(--space-sm);">
+            Save Expense
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dynamic Payment QR Modal -->
+    <div id="modal-qr" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+      <div class="modal-content" style="text-align: center;">
+        <div class="modal-header">
+          <h3 id="qr-modal-title">Instant Payment</h3>
+          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+        <p id="qr-modal-desc" style="font-size: var(--text-sm); margin-bottom: var(--space-sm);">
+          Scan with your camera or payment app to settle up directly:
+        </p>
+        <div id="qr-code-display" class="qr-container">
+          <!-- QRCode.js renders SVG/Canvas here -->
+        </div>
+        <div class="mono" id="qr-amount-display" style="font-size: var(--text-lg); font-weight: 600; color: var(--color-accent); margin-bottom: var(--space-xs);">
+          $0.00
+        </div>
+        <p id="qr-handle-display" style="font-size: var(--text-xs); color: var(--color-muted); margin-bottom: var(--space-md);"></p>
+        <button id="btn-copy-payment-link" class="key" type="button" style="width: 100%;">
+          Copy Payment URI / Link
+        </button>
+      </div>
+    </div>
+
+    <!-- Create New Trip Modal -->
+    <div id="modal-new-trip" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="new-trip-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="new-trip-modal-title">Create New Trip / Group</h3>
+          <button class="key key--sm btn-close-modal" aria-label="Close modal">✕</button>
+        </div>
+        <form id="form-new-trip">
+          <div class="form-group">
+            <label for="new-trip-name" class="label">Trip / Group Name</label>
+            <input id="new-trip-name" class="input" type="text" placeholder="e.g. Goa Trip 2026, Apartment 4B" required>
+          </div>
+          <div class="form-group">
+            <label for="new-trip-currency" class="label">Base Currency</label>
+            <select id="new-trip-currency" class="input">
+              <option value="$" selected>$ USD / CAD / AUD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="₹">₹ INR</option>
+              <option value="¥">¥ JPY</option>
+              <option value="CHF">CHF Swiss Franc</option>
+            </select>
+          </div>
+          <button type="submit" class="key key--primary" style="width: 100%; margin-top: var(--space-sm);">
+            Create Group
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="toast" class="toast-notice" role="status" aria-live="polite">Copied to clipboard!</div>
+  </div>
+
+  <!-- Application Logic Modules -->
+  <script type="module" src="js/calculator.js"></script>
+  <script type="module" src="js/ocr.js"></script>
+  <script type="module" src="js/ledger.js"></script>
+  <script type="module" src="js/qr.js"></script>
+  <script type="module" src="js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

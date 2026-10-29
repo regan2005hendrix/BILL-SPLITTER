@@ -1,0 +1,16 @@
+{
+  "name": "Tabby Bill Splitter",
+  "short_name": "Tabby",
+  "description": "Fast, privacy-first bill splitter and group expense ledger with receipt OCR.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8f9fc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231f2937'/><text y='65' x='50' font-size='50' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%2360a5fa'>%24</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

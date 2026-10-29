@@ -1,0 +1,142 @@
+/* ==========================================================================
+   Hallmark Cobalt Theme Tokens
+   Register: Restrained Modern-Minimal / Technical Precision
+   Palette: OKLCH color space with strict :root token declarations
+   ========================================================================== */
+
+:root {
+  /* Surfaces & Paper */
+  --color-paper: oklch(98.6% 0.005 250);
+  --color-paper-2: oklch(96.2% 0.008 252);
+  --color-paper-3: oklch(93.0% 0.011 252);
+  --color-card: var(--color-paper);
+  --color-card-elevated: #ffffff;
+  
+  /* Ink & Typography */
+  --color-ink: oklch(21.0% 0.028 262);
+  --color-ink-2: oklch(36.0% 0.022 260);
+  --color-muted: oklch(50.0% 0.018 258);
+  --color-dim: oklch(64.0% 0.014 256);
+  
+  /* Rules & Hairlines */
+  --color-rule: oklch(90.0% 0.009 252);
+  --color-rule-2: oklch(83.0% 0.012 252);
+  
+  /* Graphite Dark Surfaces (Terminal / Code / Numerical Highlights) */
+  --color-graphite: oklch(21.0% 0.024 262);
+  --color-graphite-2: oklch(26.5% 0.026 262);
+  --color-graphite-ink: oklch(93.0% 0.010 250);
+  --color-graphite-muted: oklch(69.0% 0.022 256);
+  --color-graphite-rule: oklch(32.0% 0.024 262);
+  
+  /* Electric Cobalt Accent */
+  --color-accent: oklch(52.0% 0.190 258);
+  --color-accent-2: oklch(76.0% 0.130 254);
+  --color-accent-wash: oklch(95.0% 0.028 256);
+  --color-accent-ink: oklch(98.6% 0.005 250);
+  --color-focus: oklch(52.0% 0.190 258);
+  --color-accent-deep: oklch(43.0% 0.200 262);
+  --color-accent-edge: oklch(39.0% 0.160 260);
+  
+  /* State Signals (Accessible & Minimal) */
+  --color-success: oklch(56.0% 0.160 145);
+  --color-success-wash: oklch(95.0% 0.030 145);
+  --color-danger: oklch(55.0% 0.190 25);
+  --color-danger-wash: oklch(94.0% 0.040 25);
+
+  /* Keycap Controls */
+  --color-key-face: oklch(99.4% 0.003 250);
+  --color-key-edge: oklch(80.0% 0.016 254);
+  
+  /* Fonts */
+  --font-display: "Familjen Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-outlier: "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  
+  /* Geometry & Radii */
+  --radius-card: 10px;
+  --radius-input: 8px;
+  --radius-pill: 999px;
+  --radius-key: 8px;
+  --rule-hair: 1px;
+  --rule-medium: 2px;
+  
+  /* Shadows & Tactile Depth */
+  --shadow-card: 0 1px 3px oklch(21% 0.028 262 / 0.06), 0 4px 12px oklch(21% 0.028 262 / 0.03);
+  --shadow-modal: 0 12px 32px oklch(21% 0.028 262 / 0.15), 0 2px 6px oklch(21% 0.028 262 / 0.08);
+  --shadow-key: 0 3px 0 0 var(--color-key-edge), 0 5px 8px -2px oklch(21% 0.028 262 / 0.22), inset 0 1px 0 oklch(100% 0 0 / 0.8);
+  --shadow-key-accent: 0 3px 0 0 var(--color-accent-edge), 0 6px 10px -2px oklch(30% 0.12 260 / 0.40), inset 0 1px 0 oklch(100% 0 0 / 0.25);
+  --shadow-key-press: inset 0 2px 3px oklch(21% 0.028 262 / 0.18);
+  
+  /* Motion & Timing */
+  --dur-micro: 120ms;
+  --dur-short: 180ms;
+  --dur-medium: 280ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Spacing */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Typography Scale */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  
+  --tracking-display: -0.025em;
+  --display-weight: 600;
+}
+
+/* ==========================================================================
+   Dark Theme Overrides
+   ========================================================================== */
+[data-theme="dark"] {
+  --color-paper: oklch(16.0% 0.020 262);
+  --color-paper-2: oklch(19.5% 0.022 262);
+  --color-paper-3: oklch(23.0% 0.024 262);
+  --color-card: oklch(19.0% 0.022 262);
+  --color-card-elevated: oklch(22.0% 0.024 262);
+  
+  --color-ink: oklch(94.0% 0.008 250);
+  --color-ink-2: oklch(82.0% 0.014 252);
+  --color-muted: oklch(65.0% 0.016 254);
+  --color-dim: oklch(48.0% 0.018 256);
+  
+  --color-rule: oklch(27.0% 0.022 262);
+  --color-rule-2: oklch(34.0% 0.024 262);
+  
+  --color-graphite: oklch(13.0% 0.018 262);
+  --color-graphite-2: oklch(16.5% 0.020 262);
+  --color-graphite-ink: oklch(94.0% 0.008 250);
+  --color-graphite-muted: oklch(65.0% 0.016 254);
+  --color-graphite-rule: oklch(25.0% 0.022 262);
+  
+  --color-accent: oklch(62.0% 0.200 256);
+  --color-accent-2: oklch(80.0% 0.120 254);
+  --color-accent-wash: oklch(24.0% 0.060 258);
+  --color-accent-ink: oklch(14.0% 0.020 262);
+  --color-focus: oklch(62.0% 0.200 256);
+  --color-accent-deep: oklch(50.0% 0.190 260);
+  --color-accent-edge: oklch(42.0% 0.180 260);
+  
+  --color-key-face: oklch(22.0% 0.022 262);
+  --color-key-edge: oklch(14.0% 0.018 262);
+  
+  --shadow-card: 0 1px 3px oklch(5% 0.01 262 / 0.4), 0 4px 12px oklch(5% 0.01 262 / 0.3);
+  --shadow-modal: 0 16px 36px oklch(0% 0 0 / 0.6), 0 2px 6px oklch(0% 0 0 / 0.4);
+  --shadow-key: 0 3px 0 0 var(--color-key-edge), 0 5px 8px -2px oklch(0% 0 0 / 0.5), inset 0 1px 0 oklch(100% 0 0 / 0.08);
+  --shadow-key-accent: 0 3px 0 0 var(--color-accent-edge), 0 6px 12px -2px oklch(0% 0 0 / 0.6), inset 0 1px 0 oklch(100% 0 0 / 0.2);
+  --shadow-key-press: inset 0 2px 3px oklch(0% 0 0 / 0.4);
+}
