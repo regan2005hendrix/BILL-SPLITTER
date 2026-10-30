@@ -1,3 +1,5 @@
+/* Hallmark · theme: cobalt · genre: modern-minimal · scope: app · redesign: full */
+
 @import url("./tokens.css");
 
 /* ==========================================================================
@@ -20,12 +22,25 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-color: var(--color-rule-2) transparent;
+  caret-color: var(--color-accent);
 }
 
 /* Accessibility: Focus Visible - Instant appearance */
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* Accessibility: Disabled state styling across all interactive elements */
+:disabled, [disabled], [aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+  color: var(--color-disabled-ink) !important;
+  background-color: var(--color-disabled-bg) !important;
+  border-color: var(--color-disabled-rule) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Accessibility: Reduced Motion */
@@ -54,6 +69,7 @@ h1, h2, h3, h4 {
   letter-spacing: var(--tracking-display);
   color: var(--color-ink);
   line-height: 1.15;
+  text-wrap: balance;
   overflow-wrap: break-word;
   min-width: 0;
 }
@@ -76,9 +92,13 @@ p {
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--color-muted);
-  text-transform: none; /* Hallmark Floor: never tracked caps or small caps */
+  text-transform: none;
   display: block;
   margin-bottom: var(--space-2xs);
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -122,8 +142,8 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px oklch(52% 0.19 258 / 0.3);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-brand-icon);
   flex-shrink: 0;
 }
 
@@ -133,7 +153,7 @@ p {
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
 .brand-sub {
@@ -155,8 +175,8 @@ p {
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--space-2xs);
   border: var(--rule-hair) solid var(--color-graphite-rule);
 }
 
@@ -172,7 +192,7 @@ p {
   background: var(--color-paper-2);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-pill);
-  padding: 3px;
+  padding: var(--space-2xs);
   margin-bottom: var(--space-xl);
 }
 
@@ -186,6 +206,9 @@ p {
   padding: var(--space-xs) var(--space-lg);
   border-radius: var(--radius-pill);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
 }
 
@@ -197,7 +220,7 @@ p {
   background: var(--color-paper);
   color: var(--color-ink);
   font-weight: 600;
-  box-shadow: 0 1px 3px oklch(21% 0.028 262 / 0.1);
+  box-shadow: var(--shadow-tab-active);
 }
 
 /* Views */
@@ -223,9 +246,10 @@ p {
   }
 }
 
-/* Hallmark Flat Panels (not nested cards) */
+/* Hallmark Flat Panels */
 .panel {
   background: var(--color-card);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
   padding: var(--space-lg);
@@ -265,7 +289,7 @@ p {
 
 .input {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: var(--space-xs) var(--space-sm);
   font-family: var(--font-body);
   font-size: var(--text-sm);
   color: var(--color-ink);
@@ -299,7 +323,7 @@ select.input {
   gap: var(--space-xs);
   border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-key);
-  padding: 0.5rem 1rem;
+  padding: var(--space-xs) var(--space-md);
   min-height: 40px;
   background: var(--color-key-face);
   color: var(--color-ink);
@@ -311,6 +335,7 @@ select.input {
   box-shadow: var(--shadow-key);
   transition: transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
   user-select: none;
+  white-space: nowrap;
 }
 
 .key:hover {
@@ -332,8 +357,14 @@ select.input {
 
 .key--sm {
   min-height: 32px;
-  padding: 0.25rem 0.625rem;
+  padding: var(--space-2xs) var(--space-xs);
   font-size: var(--text-xs);
+}
+
+.key--icon {
+  min-height: 36px;
+  min-width: 36px;
+  padding: var(--space-2xs);
 }
 
 .key--danger {
@@ -348,27 +379,27 @@ select.input {
   flex-wrap: wrap;
 }
 
-.chip-btn {
+.chip {
   background: var(--color-paper-2);
   border: var(--rule-hair) solid var(--color-rule);
   color: var(--color-ink-2);
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
-  padding: 6px 12px;
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
 }
 
-.chip-btn:hover {
+.chip:hover {
   border-color: var(--color-muted);
   color: var(--color-ink);
 }
 
-.chip-btn.active {
+.chip.active {
   background: var(--color-accent-wash);
   border-color: var(--color-accent);
-  color: var(--color-accent-deep);
+  color: var(--color-accent-contrast);
   font-weight: 600;
 }
 
@@ -435,6 +466,7 @@ select.input {
 /* Person Breakdown Cards */
 .person-share-card {
   background: var(--color-paper-2);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-input);
   padding: var(--space-md);
@@ -470,8 +502,7 @@ select.input {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: oklch(0% 0 0 / 0.5);
-  backdrop-filter: blur(4px);
+  background: var(--color-backdrop);
   display: none;
   align-items: center;
   justify-content: center;
@@ -485,7 +516,7 @@ select.input {
 
 .modal-content {
   background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
+  color: var(--color-ink);
   border-radius: var(--radius-card);
   max-width: 540px;
   width: 100%;
@@ -511,7 +542,7 @@ select.input {
   align-items: center;
   justify-content: center;
   padding: var(--space-md);
-  background: #ffffff;
+  background: var(--color-pure-white);
   border-radius: var(--radius-input);
   border: var(--rule-hair) solid var(--color-rule);
   margin: var(--space-md) 0;
@@ -520,16 +551,15 @@ select.input {
 /* Toast Notification */
 .toast-notice {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
   background: var(--color-graphite);
   color: var(--color-graphite-ink);
-  padding: 10px 18px;
+  padding: var(--space-xs) var(--space-md);
   border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   font-family: var(--font-display);
   box-shadow: var(--shadow-modal);
-  border: var(--rule-hair) solid var(--color-graphite-rule);
   transform: translateY(100px);
   opacity: 0;
   pointer-events: none;
@@ -554,6 +584,7 @@ select.input {
 
 .section-card {
   background: var(--color-paper-2);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
   padding: var(--space-md);
@@ -563,9 +594,9 @@ select.input {
   background: var(--color-paper-3);
   color: var(--color-ink-2);
   font-family: var(--font-outlier);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 3px 8px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
   border: var(--rule-hair) solid var(--color-rule);
 }
@@ -578,7 +609,7 @@ select.input {
 
 .currency-symbol-label {
   position: absolute;
-  left: 12px;
+  left: var(--space-sm);
   font-family: var(--font-outlier);
   font-weight: 600;
   font-size: 1.15rem;
@@ -587,13 +618,13 @@ select.input {
 }
 
 .input-with-symbol .input {
-  padding-left: 32px;
+  padding-left: var(--space-xl);
 }
 
 .input-lg {
   font-size: 1.25rem;
   font-weight: 600;
-  padding: 0.65rem 0.85rem;
+  padding: var(--space-xs) var(--space-sm);
 }
 
 .table-responsive {
@@ -615,23 +646,23 @@ select.input {
 .avatar-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   background: var(--color-paper);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-pill);
-  padding: 4px 10px 4px 4px;
-  box-shadow: 0 1px 2px oklch(21% 0.028 262 / 0.04);
+  padding: var(--space-2xs) var(--space-sm) var(--space-2xs) var(--space-2xs);
+  box-shadow: var(--shadow-chip);
 }
 
 .avatar-circle {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -651,7 +682,7 @@ select.input {
 
 .avatar-chip-upi {
   font-family: var(--font-outlier);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--color-muted);
 }
 
@@ -673,11 +704,12 @@ select.input {
 }
 
 /* ==========================================================================
-   Receipt Card (Perforated ticket aesthetic)
+   Receipt Card
    ========================================================================== */
 
 .receipt-card {
   background: var(--color-paper-2);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
   padding: var(--space-md) var(--space-lg);
@@ -711,18 +743,18 @@ select.input {
    ========================================================================== */
 
 .person-card-collector {
-  border-left: 3px solid var(--color-accent);
+  border: var(--rule-medium) solid var(--color-accent);
 }
 
 .person-collector-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
   background: var(--color-accent-wash);
-  color: var(--color-accent-deep);
-  font-size: 11px;
+  color: var(--color-accent-contrast);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 3px 8px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
 }
 
@@ -735,35 +767,35 @@ select.input {
   border-top: var(--rule-hair) solid var(--color-rule);
 }
 
-.btn-pay-direct {
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-  border: var(--rule-hair) solid var(--color-accent-edge);
-  box-shadow: var(--shadow-key-accent);
+.pay-direct-action {
+  background: var(--color-key-face);
+  color: var(--color-accent-contrast);
+  border: var(--rule-hair) solid var(--color-accent);
+  box-shadow: var(--shadow-key);
   font-weight: 600;
-  padding: 6px 12px;
+  padding: var(--space-2xs) var(--space-sm);
   min-height: 32px;
   border-radius: var(--radius-key);
   font-size: var(--text-xs);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2xs);
   cursor: pointer;
   user-select: none;
   transition: transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
 }
 
-.btn-pay-direct:hover {
+.pay-direct-action:hover {
   transform: translateY(-1px);
 }
 
-.btn-pay-direct:active {
+.pay-direct-action:active {
   transform: translateY(2px);
   box-shadow: var(--shadow-key-press);
 }
 
 /* ==========================================================================
-   OCR Progress Bar
+   Progress Bar (Scale transform animation)
    ========================================================================== */
 
 .progress-track {
@@ -772,15 +804,17 @@ select.input {
   background: var(--color-paper-3);
   border-radius: var(--radius-pill);
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: var(--space-xs);
 }
 
 .progress-fill {
-  width: 0%;
+  width: 100%;
   height: 100%;
   background: var(--color-accent);
   border-radius: var(--radius-pill);
-  transition: width 0.2s ease;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform var(--dur-short) var(--ease-out);
 }
 
 /* ==========================================================================
@@ -794,14 +828,14 @@ select.input {
 .upi-secure-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
   background: var(--color-success-wash);
-  color: var(--color-success);
-  font-size: 11px;
+  color: var(--color-success-contrast);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 2px 10px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
 }
 
 .upi-recipient-card {
@@ -810,6 +844,7 @@ select.input {
   text-align: left;
   gap: var(--space-md);
   background: var(--color-paper-2);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
   padding: var(--space-sm) var(--space-md);
@@ -845,22 +880,22 @@ select.input {
 .upi-apps-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-xs);
   justify-content: center;
   margin: var(--space-xs) 0;
 }
 
 .upi-app-pill {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 500;
   color: var(--color-ink-2);
   background: var(--color-paper-2);
   border: var(--rule-hair) solid var(--color-rule);
-  padding: 3px 8px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .upi-app-pill::before {
@@ -887,12 +922,12 @@ select.input {
 .status-badge-paid {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
   background: var(--color-success-wash);
-  color: var(--color-success);
-  font-size: 11px;
+  color: var(--color-success-contrast);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 3px 8px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
   border: var(--rule-hair) solid var(--color-success);
 }
@@ -900,28 +935,29 @@ select.input {
 .status-badge-confirmed {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: var(--color-success);
-  color: #ffffff;
-  font-size: 11px;
+  gap: var(--space-2xs);
+  background: var(--color-success-wash);
+  color: var(--color-success-contrast);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  padding: 3px 8px;
+  padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-pill);
-  box-shadow: 0 1px 3px oklch(56% 0.16 145 / 0.3);
+  border: var(--rule-hair) solid var(--color-success);
 }
 
 .payment-success-card {
   background: var(--color-paper);
+  color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-success);
   border-radius: var(--radius-card);
   padding: var(--space-md);
   text-align: center;
-  box-shadow: 0 4px 14px oklch(56% 0.16 145 / 0.15);
+  box-shadow: var(--shadow-payment-success);
 }
 
 .btn-quick-mark-paid {
-  font-size: 11px;
-  padding: 4px 8px;
+  font-size: var(--text-2xs);
+  padding: var(--space-2xs) var(--space-xs);
   min-height: 28px;
   background: var(--color-paper-2);
   color: var(--color-ink-2);
@@ -934,9 +970,6 @@ select.input {
 
 .btn-quick-mark-paid:hover {
   background: var(--color-success-wash);
-  color: var(--color-success);
+  color: var(--color-success-contrast);
   border-color: var(--color-success);
 }
-
-
-

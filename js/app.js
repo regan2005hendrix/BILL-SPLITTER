@@ -125,7 +125,7 @@ const dishesTbody = document.getElementById('dishes-tbody');
 const newDishNameInput = document.getElementById('new-dish-name');
 const newDishPriceInput = document.getElementById('new-dish-price');
 const btnAddDish = document.getElementById('btn-add-dish');
-const tipPresetBtns = document.querySelectorAll('#tip-presets .chip-btn');
+const tipPresetBtns = document.querySelectorAll('#tip-presets .chip');
 const customTipInput = document.getElementById('custom-tip-input');
 const taxPercentInput = document.getElementById('tax-percent');
 const discountInput = document.getElementById('discount-input');
@@ -245,14 +245,17 @@ function initTheme() {
   });
 }
 
+const MOON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SUN_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+
 function applyTheme(isDark) {
   if (isDark) {
     document.documentElement.setAttribute('data-theme', 'dark');
-    themeIcon.textContent = '☀️';
+    themeIcon.innerHTML = SUN_SVG;
     localStorage.setItem('tabby_theme', 'dark');
   } else {
     document.documentElement.removeAttribute('data-theme');
-    themeIcon.textContent = '🌙';
+    themeIcon.innerHTML = MOON_SVG;
     localStorage.setItem('tabby_theme', 'light');
   }
 }
@@ -670,7 +673,7 @@ function renderQuickSplit() {
       const memberChipsHtml = quickState.people.map(person => {
         const isShared = item.sharedBy.includes(person);
         const activeClass = isShared ? 'active' : '';
-        return `<button type="button" class="chip-btn ${activeClass}" style="padding: 2px 7px; font-size: 11px;" data-person="${escapeHtml(person)}">${escapeHtml(person)}</button>`;
+        return `<button type="button" class="chip ${activeClass}" style="padding: 2px 7px; font-size: 11px;" data-person="${escapeHtml(person)}">${escapeHtml(person)}</button>`;
       }).join(' ');
 
       tr.innerHTML = `
@@ -747,10 +750,10 @@ function renderQuickSplit() {
   if (debtors.length > 0 && quickCollectionMeter) {
     quickCollectionMeter.style.display = 'block';
     const pct = totalDebtToCollect > 0 ? Math.min(100, Math.round((totalDebtCollected / totalDebtToCollect) * 100)) : 0;
-    quickCollectionFill.style.width = `${pct}%`;
+    quickCollectionFill.style.transform = `scaleX(${pct / 100})`;
     if (pct === 100) {
       quickCollectionFill.style.background = 'var(--color-success)';
-      quickCollectionLabel.textContent = `🎉 All Settled! ${cur}${totalDebtCollected.toFixed(2)} Collected (${paidDebtorsCount}/${debtors.length})`;
+      quickCollectionLabel.textContent = `All Settled! ${cur}${totalDebtCollected.toFixed(2)} Collected (${paidDebtorsCount}/${debtors.length})`;
       quickCollectionLabel.style.color = 'var(--color-success)';
     } else {
       quickCollectionFill.style.background = 'var(--color-accent)';
@@ -774,13 +777,13 @@ function renderQuickSplit() {
       
       let actionsHtml = '';
       if (isCollector) {
-        actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">👑 Paid full bill for table. Collecting from other members.</div>`;
+        actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">Paid full bill for table. Collecting from other members.</div>`;
       } else if (pStat.status === 'confirmed') {
         actionsHtml = `
           <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <span class="status-badge-confirmed">✔ Payment Verified by ${escapeHtml(collector)}</span>
+            <span class="status-badge-confirmed">Payment Verified by ${escapeHtml(collector)}</span>
             <div style="display: flex; gap: 4px;">
-              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send/View WhatsApp proof">💬 Proof</button>
+              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send/View WhatsApp proof">Proof</button>
               <button class="key key--sm btn-reset-status" data-person="${escapeHtml(person)}" title="Reset to unpaid">↺</button>
             </div>
           </div>
@@ -788,10 +791,10 @@ function renderQuickSplit() {
       } else if (pStat.status === 'paid') {
         actionsHtml = `
           <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <span class="status-badge-paid">⏳ Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
+            <span class="status-badge-paid">Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
             <div style="display: flex; gap: 4px; align-items: center;">
-              <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(person)}" title="Collector confirms receipt">✔ Confirm</button>
-              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send WhatsApp proof">💬 Proof</button>
+              <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(person)}" title="Collector confirms receipt">Confirm</button>
+              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send WhatsApp proof">Proof</button>
               <button class="key key--sm btn-reset-status" data-person="${escapeHtml(person)}" title="Reset to unpaid">↺</button>
             </div>
           </div>
@@ -799,8 +802,8 @@ function renderQuickSplit() {
       } else {
         actionsHtml = `
           <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <button class="btn-pay-direct" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
-              📲 Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
+            <button class="pay-direct-action" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
+              Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
             </button>
             <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(person)}" title="Mark as paid without QR">
               Mark Paid
@@ -822,7 +825,7 @@ function renderQuickSplit() {
           </div>
           <div style="text-align: right;">
             <div class="person-total mono">${cur}${sharePerPerson.toFixed(2)}</div>
-            ${isCollector ? '<span class="person-collector-badge">👑 Paid Full Bill (Collector)</span>' : ''}
+            ${isCollector ? '<span class="person-collector-badge">Paid Full Bill (Collector)</span>' : ''}
           </div>
         </div>
         ${actionsHtml}
@@ -830,7 +833,7 @@ function renderQuickSplit() {
 
       // Event listeners for debtor actions
       if (!isCollector) {
-        card.querySelector('.btn-pay-direct')?.addEventListener('click', () => {
+        card.querySelector('.pay-direct-action')?.addEventListener('click', () => {
           openPaymentQRModal({
             name: collector,
             handle: collectorHandle,
@@ -891,13 +894,13 @@ function renderQuickSplit() {
 
         let actionsHtml = '';
         if (isCollector) {
-          actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">👑 Paid full bill for table. Collecting from other members.</div>`;
+          actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">Paid full bill for table. Collecting from other members.</div>`;
         } else if (pStat.status === 'confirmed') {
           actionsHtml = `
             <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-              <span class="status-badge-confirmed">✔ Payment Verified by ${escapeHtml(collector)}</span>
+              <span class="status-badge-confirmed">Payment Verified by ${escapeHtml(collector)}</span>
               <div style="display: flex; gap: 4px;">
-                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send/View WhatsApp proof">💬 Proof</button>
+                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send/View WhatsApp proof">Proof</button>
                 <button class="key key--sm btn-reset-status" data-person="${escapeHtml(p.person)}" title="Reset to unpaid">↺</button>
               </div>
             </div>
@@ -905,10 +908,10 @@ function renderQuickSplit() {
         } else if (pStat.status === 'paid') {
           actionsHtml = `
             <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-              <span class="status-badge-paid">⏳ Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
+              <span class="status-badge-paid">Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
               <div style="display: flex; gap: 4px; align-items: center;">
-                <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(p.person)}" title="Collector confirms receipt">✔ Confirm</button>
-                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send WhatsApp proof">💬 Proof</button>
+                <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(p.person)}" title="Collector confirms receipt">Confirm</button>
+                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send WhatsApp proof">Proof</button>
                 <button class="key key--sm btn-reset-status" data-person="${escapeHtml(p.person)}" title="Reset to unpaid">↺</button>
               </div>
             </div>
@@ -916,8 +919,8 @@ function renderQuickSplit() {
         } else {
           actionsHtml = `
             <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-              <button class="btn-pay-direct" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
-                📲 Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
+              <button class="pay-direct-action" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
+                Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
               </button>
               <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(p.person)}" title="Mark as paid without QR">
                 Mark Paid
@@ -937,7 +940,7 @@ function renderQuickSplit() {
             </div>
             <div style="text-align: right;">
               <div class="person-total mono">${cur}${p.total.toFixed(2)}</div>
-              ${isCollector ? '<span class="person-collector-badge">👑 Paid Full Bill (Collector)</span>' : ''}
+              ${isCollector ? '<span class="person-collector-badge">Paid Full Bill (Collector)</span>' : ''}
             </div>
           </div>
           <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
@@ -947,7 +950,7 @@ function renderQuickSplit() {
         `;
 
         if (!isCollector) {
-          card.querySelector('.btn-pay-direct')?.addEventListener('click', () => {
+          card.querySelector('.pay-direct-action')?.addEventListener('click', () => {
             openPaymentQRModal({
               name: collector,
               handle: collectorHandle,
@@ -1023,7 +1026,7 @@ function loadSampleDinner() {
   ];
   quickState.tipPercent = 10;
   tipPresetBtns.forEach(b => b.classList.remove('active'));
-  document.querySelector('#tip-presets .chip-btn[data-tip="10"]')?.classList.add('active');
+  document.querySelector('#tip-presets .chip[data-tip="10"]')?.classList.add('active');
 
   quickState.taxPercent = 5.0;
   taxPercentInput.value = '5.0';
@@ -1088,12 +1091,12 @@ function initOcrAndPaste() {
     ocrProgressContainer.style.display = 'block';
     ocrResultsContainer.style.display = 'none';
     ocrProgressLabel.textContent = 'Initializing optical engine...';
-    ocrProgressBar.style.width = '10%';
+    ocrProgressBar.style.transform = 'scaleX(0.1)';
 
     try {
       const rawText = await processReceiptImage(file, ({ status, progress }) => {
         ocrProgressLabel.textContent = `${status} (${progress}%)`;
-        ocrProgressBar.style.width = `${progress}%`;
+        ocrProgressBar.style.transform = `scaleX(${progress / 100})`;
       });
 
       ocrProgressContainer.style.display = 'none';
@@ -1364,7 +1367,7 @@ function openAddExpenseModal(trip) {
   expenseSplitMembers.innerHTML = '';
   trip.members.forEach(m => {
     const chip = document.createElement('label');
-    chip.className = 'chip-btn active';
+    chip.className = 'chip active';
     chip.style.display = 'inline-flex';
     chip.style.alignItems = 'center';
     chip.style.gap = '6px';
@@ -1541,10 +1544,10 @@ function renderGroupLedger() {
   if (settlements.length > 0 && tripSettlementMeter) {
     tripSettlementMeter.style.display = 'block';
     const pct = totalSettlementSum > 0 ? Math.min(100, Math.round((totalSettledSum / totalSettlementSum) * 100)) : 0;
-    tripSettlementFill.style.width = `${pct}%`;
+    tripSettlementFill.style.transform = `scaleX(${pct / 100})`;
     if (pct === 100) {
       tripSettlementFill.style.background = 'var(--color-success)';
-      tripSettlementLabel.textContent = `🎉 All Repayments Settled! (${settledCount}/${settlements.length})`;
+      tripSettlementLabel.textContent = `All Repayments Settled! (${settledCount}/${settlements.length})`;
       tripSettlementLabel.style.color = 'var(--color-success)';
     } else {
       tripSettlementFill.style.background = 'var(--color-accent)';
@@ -1558,7 +1561,7 @@ function renderGroupLedger() {
   if (settlements.length === 0) {
     tripSettlementList.innerHTML = `
       <div style="padding: var(--space-md); text-align: center; color: var(--color-muted); font-size: var(--text-sm);">
-        🎉 All settled up! No outstanding payments required.
+        All settled up! No outstanding payments required.
       </div>
     `;
   } else {
@@ -1576,17 +1579,17 @@ function renderGroupLedger() {
       if (sStat.status === 'confirmed') {
         actionsHtml = `
           <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
-            <span class="status-badge-confirmed">✔ Verified by ${escapeHtml(s.to)}</span>
-            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">💬 Proof</button>
+            <span class="status-badge-confirmed">Verified by ${escapeHtml(s.to)}</span>
+            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">Proof</button>
             <button class="key key--sm btn-trip-reset" title="Reset to unpaid">↺</button>
           </div>
         `;
       } else if (sStat.status === 'paid') {
         actionsHtml = `
           <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
-            <span class="status-badge-paid">⏳ Paid at ${escapeHtml(sStat.paidAt || '')}</span>
-            <button class="key key--sm key--primary btn-trip-confirm" title="Confirm received in bank">✔ Confirm</button>
-            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">💬 Proof</button>
+            <span class="status-badge-paid">Paid at ${escapeHtml(sStat.paidAt || '')}</span>
+            <button class="key key--sm key--primary btn-trip-confirm" title="Confirm received in bank">Confirm</button>
+            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">Proof</button>
             <button class="key key--sm btn-trip-reset" title="Reset to unpaid">↺</button>
           </div>
         `;
@@ -1594,7 +1597,7 @@ function renderGroupLedger() {
         actionsHtml = `
           <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
             <span class="mono" style="font-weight: 700; font-size: var(--text-base); color: var(--color-accent);">${cur}${s.amount.toFixed(2)}</span>
-            <button class="btn-pay-direct btn-pay-qr" type="button" title="Show payment QR">📲 Pay ${escapeHtml(s.to)}</button>
+            <button class="pay-direct-action btn-pay-qr" type="button" title="Show payment QR">Pay ${escapeHtml(s.to)}</button>
             <button class="btn-quick-mark-paid btn-trip-mark-paid" type="button" title="Mark as paid directly">Mark Paid</button>
           </div>
         `;
@@ -1835,7 +1838,7 @@ function initPaymentConfirmation() {
       if (paymentPromptPanel) paymentPromptPanel.style.display = 'none';
       if (paymentConfirmedPanel) paymentConfirmedPanel.style.display = 'block';
       if (paymentConfirmedMeta) paymentConfirmedMeta.textContent = `Recorded at ${timeStr} • Awaiting collector confirmation`;
-      showToast(`🎉 Payment of ${currency}${amount.toFixed(2)} to ${collectorName} marked complete!`);
+      showToast(`Payment of ${currency}${amount.toFixed(2)} to ${collectorName} marked complete!`);
     });
   }
 
