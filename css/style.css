@@ -872,4 +872,71 @@ select.input {
   background: var(--color-accent);
 }
 
+/* ==========================================================================
+   Payment Status Tracking & Proof Dispatch
+   ========================================================================== */
+
+.collection-meter {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  padding: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.status-badge-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-success-wash);
+  color: var(--color-success);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: var(--rule-hair) solid var(--color-success);
+}
+
+.status-badge-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-success);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 3px oklch(56% 0.16 145 / 0.3);
+}
+
+.payment-success-card {
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-success);
+  border-radius: var(--radius-card);
+  padding: var(--space-md);
+  text-align: center;
+  box-shadow: 0 4px 14px oklch(56% 0.16 145 / 0.15);
+}
+
+.btn-quick-mark-paid {
+  font-size: 11px;
+  padding: 4px 8px;
+  min-height: 28px;
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-key);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+
+.btn-quick-mark-paid:hover {
+  background: var(--color-success-wash);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+
 

@@ -208,3 +208,22 @@ export function formatWhatsAppSummary({
   return lines.join('\n');
 }
 
+/**
+ * Formats a WhatsApp payment proof confirmation message
+ */
+export function formatPaymentProofMessage({
+  debtorName = '',
+  collectorName = '',
+  collectorHandle = '',
+  amount = 0,
+  currency = '₹',
+  note = ''
+}) {
+  const payerTitle = collectorName || 'Payer';
+  const debtorTitle = debtorName ? ` - ${debtorName}` : '';
+  const upiText = collectorHandle ? ` (${collectorHandle})` : '';
+  const noteText = note ? ` for "${note}"` : '';
+
+  return `Hi ${payerTitle}! 👋 I just paid ${currency}${parseFloat(amount || 0).toFixed(2)} to your UPI${upiText}${noteText}. Please check your bank account and confirm!${debtorTitle}`;
+}
+

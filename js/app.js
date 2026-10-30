@@ -7,6 +7,7 @@ import {
   calculateEqualSplit,
   calculateItemizedSplit,
   formatWhatsAppSummary,
+  formatPaymentProofMessage,
   roundAmount
 } from './calculator.js';
 
@@ -29,6 +30,8 @@ import {
   resetTripExpenses,
   calculateNetBalances,
   calculateSettlements,
+  markTripSettlementStatus,
+  getTripSettlementStatus,
   formatTripSummary,
   exportQuickSplitToTrip
 } from './ledger.js';
@@ -76,13 +79,25 @@ const quickState = {
   discountValue: 0,
   rounding: 'exact',
   payerName: 'Alice',
-  payerHandle: 'alice@okhdfcbank'
+  payerHandle: 'alice@okhdfcbank',
+  paymentStatus: {}
 };
 
-// Temp store for scanned OCR review items
+// Temp store for scanned OCR review items and payment context
 let ocrDetectedItems = [];
 let currentPaymentURI = '';
 let currentPayeeHandle = '';
+let currentQRContext = {
+  debtorName: '',
+  collectorName: '',
+  collectorHandle: '',
+  amount: 0,
+  currency: '₹',
+  note: '',
+  sourceType: 'quick', // 'quick' | 'trip'
+  from: '',
+  to: ''
+};
 
 /* ==========================================================================
    DOM Elements
@@ -199,6 +214,20 @@ const qrPayeeName = document.getElementById('qr-payee-name');
 const qrPayeeHandle = document.getElementById('qr-payee-handle');
 const btnOpenUpiIntent = document.getElementById('btn-open-upi-intent');
 const btnCopyPaymentLink = document.getElementById('btn-copy-payment-link');
+
+// Payment Confirmation & Progress Elements
+const quickCollectionMeter = document.getElementById('quick-collection-meter');
+const quickCollectionLabel = document.getElementById('quick-collection-label');
+const quickCollectionFill = document.getElementById('quick-collection-fill');
+const tripSettlementMeter = document.getElementById('trip-settlement-meter');
+const tripSettlementLabel = document.getElementById('trip-settlement-label');
+const tripSettlementFill = document.getElementById('trip-settlement-fill');
+const btnMarkPaid = document.getElementById('btn-mark-paid');
+const paymentPromptPanel = document.getElementById('payment-prompt-panel');
+const paymentConfirmedPanel = document.getElementById('payment-confirmed-panel');
+const paymentConfirmedMeta = document.getElementById('payment-confirmed-meta');
+const btnWhatsappProof = document.getElementById('btn-whatsapp-proof');
+const btnUndoMarkPaid = document.getElementById('btn-undo-mark-paid');
 
 /* ==========================================================================
    Theme Management
@@ -690,18 +719,96 @@ function renderQuickSplit() {
   summaryTip.textContent = `${cur}${calc.tip.toFixed(2)}`;
   summaryTotal.textContent = `${cur}${calc.total.toFixed(2)}`;
 
-  // 6. Render Individual Person Breakdown Cards with Direct UPI Pay Buttons
-  personBreakdownList.innerHTML = '';
+  // 6. Update Collection Progress Meter
   const collector = quickState.payerName || quickState.people[0] || 'Collector';
   const collectorHandle = quickState.payerHandle || quickState.personUpis[collector] || '';
+  const debtors = quickState.people.filter(p => p !== collector);
+
+  let totalDebtToCollect = 0;
+  let totalDebtCollected = 0;
+  let paidDebtorsCount = 0;
+
+  debtors.forEach(debtor => {
+    let debtorAmount = 0;
+    if (quickState.splitStyle === 'equal') {
+      debtorAmount = calc.perPerson;
+    } else {
+      const itemized = (calc.breakdown || []).find(b => b.person === debtor);
+      debtorAmount = itemized ? itemized.total : 0;
+    }
+    totalDebtToCollect += debtorAmount;
+    const pStat = quickState.paymentStatus[debtor];
+    if (pStat && (pStat.status === 'paid' || pStat.status === 'confirmed')) {
+      totalDebtCollected += debtorAmount;
+      paidDebtorsCount++;
+    }
+  });
+
+  if (debtors.length > 0 && quickCollectionMeter) {
+    quickCollectionMeter.style.display = 'block';
+    const pct = totalDebtToCollect > 0 ? Math.min(100, Math.round((totalDebtCollected / totalDebtToCollect) * 100)) : 0;
+    quickCollectionFill.style.width = `${pct}%`;
+    if (pct === 100) {
+      quickCollectionFill.style.background = 'var(--color-success)';
+      quickCollectionLabel.textContent = `🎉 All Settled! ${cur}${totalDebtCollected.toFixed(2)} Collected (${paidDebtorsCount}/${debtors.length})`;
+      quickCollectionLabel.style.color = 'var(--color-success)';
+    } else {
+      quickCollectionFill.style.background = 'var(--color-accent)';
+      quickCollectionLabel.textContent = `${cur}${totalDebtCollected.toFixed(2)} / ${cur}${totalDebtToCollect.toFixed(2)} Collected (${paidDebtorsCount}/${debtors.length} Paid)`;
+      quickCollectionLabel.style.color = 'var(--color-accent)';
+    }
+  } else if (quickCollectionMeter) {
+    quickCollectionMeter.style.display = 'none';
+  }
+
+  // 7. Render Individual Person Breakdown Cards with Status & Direct UPI Pay Buttons
+  personBreakdownList.innerHTML = '';
 
   if (quickState.splitStyle === 'equal') {
     const sharePerPerson = calc.perPerson;
     quickState.people.forEach((person, idx) => {
       const isCollector = (person === collector);
+      const pStat = quickState.paymentStatus[person] || { status: 'unpaid' };
       const card = document.createElement('div');
       card.className = `person-share-card ${isCollector ? 'person-card-collector' : ''}`;
       
+      let actionsHtml = '';
+      if (isCollector) {
+        actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">👑 Paid full bill for table. Collecting from other members.</div>`;
+      } else if (pStat.status === 'confirmed') {
+        actionsHtml = `
+          <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span class="status-badge-confirmed">✔ Payment Verified by ${escapeHtml(collector)}</span>
+            <div style="display: flex; gap: 4px;">
+              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send/View WhatsApp proof">💬 Proof</button>
+              <button class="key key--sm btn-reset-status" data-person="${escapeHtml(person)}" title="Reset to unpaid">↺</button>
+            </div>
+          </div>
+        `;
+      } else if (pStat.status === 'paid') {
+        actionsHtml = `
+          <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span class="status-badge-paid">⏳ Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(person)}" title="Collector confirms receipt">✔ Confirm</button>
+              <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}" title="Send WhatsApp proof">💬 Proof</button>
+              <button class="key key--sm btn-reset-status" data-person="${escapeHtml(person)}" title="Reset to unpaid">↺</button>
+            </div>
+          </div>
+        `;
+      } else {
+        actionsHtml = `
+          <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <button class="btn-pay-direct" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
+              📲 Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
+            </button>
+            <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(person)}" title="Mark as paid without QR">
+              Mark Paid
+            </button>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div class="person-share-header">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -709,7 +816,7 @@ function renderQuickSplit() {
             <div>
               <div class="person-name">${escapeHtml(person)}</div>
               <div style="font-size: 11px; color: var(--color-muted);">
-                ${isCollector ? 'Paid in full for the table' : `Equal share (1/${quickState.people.length})`}
+                ${isCollector ? 'Paid in full for table' : `Equal share (1/${quickState.people.length})`}
               </div>
             </div>
           </div>
@@ -718,28 +825,53 @@ function renderQuickSplit() {
             ${isCollector ? '<span class="person-collector-badge">👑 Paid Full Bill (Collector)</span>' : ''}
           </div>
         </div>
-        ${!isCollector ? `
-          <div class="person-share-card-actions">
-            <button class="btn-pay-direct" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
-              📲 Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
-            </button>
-            <span style="font-size: 11px; color: var(--color-muted);">Scan QR to deposit into ${escapeHtml(collector)}'s bank</span>
-          </div>
-        ` : `
-          <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
-            Collecting ${cur}${(calc.total - sharePerPerson).toFixed(2)} total from the other ${quickState.people.length - 1} ${quickState.people.length - 1 === 1 ? 'person' : 'people'}.
-          </div>
-        `}
+        ${actionsHtml}
       `;
 
+      // Event listeners for debtor actions
       if (!isCollector) {
-        card.querySelector('.btn-pay-direct').addEventListener('click', () => {
+        card.querySelector('.btn-pay-direct')?.addEventListener('click', () => {
           openPaymentQRModal({
             name: collector,
             handle: collectorHandle,
             amount: sharePerPerson,
             currency: cur,
-            note: `${person}'s equal share for bill`
+            note: `${person}'s equal share for bill`,
+            debtorName: person,
+            sourceType: 'quick'
+          });
+        });
+
+        card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          quickState.paymentStatus[person] = { status: 'paid', paidAt: timeStr };
+          showToast(`Marked ${person}'s share as paid!`);
+          renderQuickSplit();
+        });
+
+        card.querySelector('.btn-confirm-received')?.addEventListener('click', () => {
+          quickState.paymentStatus[person] = {
+            ...(quickState.paymentStatus[person] || {}),
+            status: 'confirmed'
+          };
+          showToast(`Confirmed payment received from ${person}!`);
+          renderQuickSplit();
+        });
+
+        card.querySelector('.btn-reset-status')?.addEventListener('click', () => {
+          delete quickState.paymentStatus[person];
+          showToast(`Reset ${person}'s payment status.`);
+          renderQuickSplit();
+        });
+
+        card.querySelector('.btn-proof-wa')?.addEventListener('click', () => {
+          sendWhatsAppPaymentProof({
+            debtorName: person,
+            collectorName: collector,
+            collectorHandle: collectorHandle,
+            amount: sharePerPerson,
+            currency: cur,
+            note: `${person}'s equal bill share`
           });
         });
       }
@@ -753,8 +885,46 @@ function renderQuickSplit() {
         const isCollector = (p.person === collector);
         const personIdx = quickState.people.indexOf(p.person);
         const colorIdx = personIdx >= 0 ? personIdx % 6 : idx % 6;
+        const pStat = quickState.paymentStatus[p.person] || { status: 'unpaid' };
         const card = document.createElement('div');
         card.className = `person-share-card ${isCollector ? 'person-card-collector' : ''}`;
+
+        let actionsHtml = '';
+        if (isCollector) {
+          actionsHtml = `<div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">👑 Paid full bill for table. Collecting from other members.</div>`;
+        } else if (pStat.status === 'confirmed') {
+          actionsHtml = `
+            <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span class="status-badge-confirmed">✔ Payment Verified by ${escapeHtml(collector)}</span>
+              <div style="display: flex; gap: 4px;">
+                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send/View WhatsApp proof">💬 Proof</button>
+                <button class="key key--sm btn-reset-status" data-person="${escapeHtml(p.person)}" title="Reset to unpaid">↺</button>
+              </div>
+            </div>
+          `;
+        } else if (pStat.status === 'paid') {
+          actionsHtml = `
+            <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span class="status-badge-paid">⏳ Paid at ${escapeHtml(pStat.paidAt || 'earlier')}</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <button class="key key--sm key--primary btn-confirm-received" data-person="${escapeHtml(p.person)}" title="Collector confirms receipt">✔ Confirm</button>
+                <button class="key key--sm btn-proof-wa" data-person="${escapeHtml(p.person)}" data-amount="${p.total}" title="Send WhatsApp proof">💬 Proof</button>
+                <button class="key key--sm btn-reset-status" data-person="${escapeHtml(p.person)}" title="Reset to unpaid">↺</button>
+              </div>
+            </div>
+          `;
+        } else {
+          actionsHtml = `
+            <div class="person-share-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <button class="btn-pay-direct" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
+                📲 Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
+              </button>
+              <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(p.person)}" title="Mark as paid without QR">
+                Mark Paid
+              </button>
+            </div>
+          `;
+        }
 
         card.innerHTML = `
           <div class="person-share-header">
@@ -773,28 +943,52 @@ function renderQuickSplit() {
           <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
             Dishes: ${cur}${p.itemsTotal.toFixed(2)} | Tax & Tip: ${cur}${(p.tax + p.tip).toFixed(2)}
           </div>
-          ${!isCollector ? `
-            <div class="person-share-card-actions">
-              <button class="btn-pay-direct" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
-                📲 Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
-              </button>
-              <span style="font-size: 11px; color: var(--color-muted);">Scan QR to deposit into ${escapeHtml(collector)}'s bank</span>
-            </div>
-          ` : `
-            <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px;">
-              Collecting ${cur}${(calc.total - p.total).toFixed(2)} total from other ${quickState.people.length - 1} ${quickState.people.length - 1 === 1 ? 'person' : 'people'}.
-            </div>
-          `}
+          ${actionsHtml}
         `;
 
         if (!isCollector) {
-          card.querySelector('.btn-pay-direct').addEventListener('click', () => {
+          card.querySelector('.btn-pay-direct')?.addEventListener('click', () => {
             openPaymentQRModal({
               name: collector,
               handle: collectorHandle,
               amount: p.total,
               currency: cur,
-              note: `${p.person}'s share for ${p.itemsSummary.slice(0, 30)}`
+              note: `${p.person}'s share for ${p.itemsSummary.slice(0, 30)}`,
+              debtorName: p.person,
+              sourceType: 'quick'
+            });
+          });
+
+          card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            quickState.paymentStatus[p.person] = { status: 'paid', paidAt: timeStr };
+            showToast(`Marked ${p.person}'s share as paid!`);
+            renderQuickSplit();
+          });
+
+          card.querySelector('.btn-confirm-received')?.addEventListener('click', () => {
+            quickState.paymentStatus[p.person] = {
+              ...(quickState.paymentStatus[p.person] || {}),
+              status: 'confirmed'
+            };
+            showToast(`Confirmed payment received from ${p.person}!`);
+            renderQuickSplit();
+          });
+
+          card.querySelector('.btn-reset-status')?.addEventListener('click', () => {
+            delete quickState.paymentStatus[p.person];
+            showToast(`Reset ${p.person}'s payment status.`);
+            renderQuickSplit();
+          });
+
+          card.querySelector('.btn-proof-wa')?.addEventListener('click', () => {
+            sendWhatsAppPaymentProof({
+              debtorName: p.person,
+              collectorName: collector,
+              collectorHandle: collectorHandle,
+              amount: p.total,
+              currency: cur,
+              note: p.itemsSummary.slice(0, 30)
             });
           });
         }
@@ -838,10 +1032,13 @@ function loadSampleDinner() {
   quickState.payerName = 'Alice';
   quickState.payerHandle = 'alice@okhdfcbank';
   quickPayerHandleInput.value = 'alice@okhdfcbank';
+  quickState.paymentStatus = {
+    'Bob': { status: 'paid', paidAt: '10:45 AM' }
+  };
 
   updateCurrencyLabels('₹');
   renderQuickSplit();
-  showToast('Loaded sample dinner with UPI IDs!');
+  showToast('Loaded sample dinner with UPI IDs & live collection status!');
 }
 
 function exportMealToActiveTrip() {
@@ -1324,9 +1521,39 @@ function renderGroupLedger() {
     tripBalancesList.appendChild(row);
   });
 
-  // 5. Render Minimized Settlements
+  // 5. Render Minimized Settlements & Progress Meter
   const settlements = calculateSettlements(activeTrip);
   tripSettlementList.innerHTML = '';
+
+  let totalSettlementSum = 0;
+  let totalSettledSum = 0;
+  let settledCount = 0;
+
+  settlements.forEach(s => {
+    totalSettlementSum += s.amount;
+    const stat = getTripSettlementStatus(activeTrip.id, s.from, s.to);
+    if (stat.status === 'paid' || stat.status === 'confirmed') {
+      totalSettledSum += s.amount;
+      settledCount++;
+    }
+  });
+
+  if (settlements.length > 0 && tripSettlementMeter) {
+    tripSettlementMeter.style.display = 'block';
+    const pct = totalSettlementSum > 0 ? Math.min(100, Math.round((totalSettledSum / totalSettlementSum) * 100)) : 0;
+    tripSettlementFill.style.width = `${pct}%`;
+    if (pct === 100) {
+      tripSettlementFill.style.background = 'var(--color-success)';
+      tripSettlementLabel.textContent = `🎉 All Repayments Settled! (${settledCount}/${settlements.length})`;
+      tripSettlementLabel.style.color = 'var(--color-success)';
+    } else {
+      tripSettlementFill.style.background = 'var(--color-accent)';
+      tripSettlementLabel.textContent = `${cur}${totalSettledSum.toFixed(2)} / ${cur}${totalSettlementSum.toFixed(2)} Settled (${settledCount}/${settlements.length})`;
+      tripSettlementLabel.style.color = 'var(--color-accent)';
+    }
+  } else if (tripSettlementMeter) {
+    tripSettlementMeter.style.display = 'none';
+  }
 
   if (settlements.length === 0) {
     tripSettlementList.innerHTML = `
@@ -1336,12 +1563,43 @@ function renderGroupLedger() {
     `;
   } else {
     settlements.forEach(s => {
+      const sStat = getTripSettlementStatus(activeTrip.id, s.from, s.to);
       const card = document.createElement('div');
       card.className = 'person-share-card';
       card.style.display = 'flex';
       card.style.justifyContent = 'space-between';
       card.style.alignItems = 'center';
       card.style.gap = 'var(--space-sm)';
+      card.style.flexWrap = 'wrap';
+
+      let actionsHtml = '';
+      if (sStat.status === 'confirmed') {
+        actionsHtml = `
+          <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="status-badge-confirmed">✔ Verified by ${escapeHtml(s.to)}</span>
+            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">💬 Proof</button>
+            <button class="key key--sm btn-trip-reset" title="Reset to unpaid">↺</button>
+          </div>
+        `;
+      } else if (sStat.status === 'paid') {
+        actionsHtml = `
+          <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="status-badge-paid">⏳ Paid at ${escapeHtml(sStat.paidAt || '')}</span>
+            <button class="key key--sm key--primary btn-trip-confirm" title="Confirm received in bank">✔ Confirm</button>
+            <button class="key key--sm btn-trip-proof" title="Send WhatsApp proof">💬 Proof</button>
+            <button class="key key--sm btn-trip-reset" title="Reset to unpaid">↺</button>
+          </div>
+        `;
+      } else {
+        actionsHtml = `
+          <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
+            <span class="mono" style="font-weight: 700; font-size: var(--text-base); color: var(--color-accent);">${cur}${s.amount.toFixed(2)}</span>
+            <button class="btn-pay-direct btn-pay-qr" type="button" title="Show payment QR">📲 Pay ${escapeHtml(s.to)}</button>
+            <button class="btn-quick-mark-paid btn-trip-mark-paid" type="button" title="Mark as paid directly">Mark Paid</button>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div>
           <div style="font-weight: 600; font-size: var(--text-sm);">
@@ -1351,19 +1609,51 @@ function renderGroupLedger() {
             Owes ${cur}${s.amount.toFixed(2)} ${s.handle ? `• ${escapeHtml(s.handle)}` : ''}
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: var(--space-xs);">
-          <span class="mono" style="font-weight: 700; font-size: var(--text-base); color: var(--color-accent);">${cur}${s.amount.toFixed(2)}</span>
-          <button class="btn-pay-direct btn-pay-qr" type="button" title="Show payment QR">📲 Pay ${escapeHtml(s.to)}</button>
-        </div>
+        ${actionsHtml}
       `;
 
-      card.querySelector('.btn-pay-qr').addEventListener('click', () => {
+      // Event listeners
+      card.querySelector('.btn-pay-qr')?.addEventListener('click', () => {
         openPaymentQRModal({
           name: s.to,
           handle: s.handle || `${s.to.toLowerCase()}@upi`,
           amount: s.amount,
           currency: cur,
-          note: `Pay ${s.to} for ${activeTrip.name}`
+          note: `Pay ${s.to} for ${activeTrip.name}`,
+          debtorName: s.from,
+          sourceType: 'trip',
+          from: s.from,
+          to: s.to
+        });
+      });
+
+      card.querySelector('.btn-trip-mark-paid')?.addEventListener('click', () => {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        markTripSettlementStatus(activeTrip.id, s.from, s.to, 'paid', timeStr);
+        showToast(`Marked ${s.from} ➔ ${s.to} repayment as paid!`);
+        renderGroupLedger();
+      });
+
+      card.querySelector('.btn-trip-confirm')?.addEventListener('click', () => {
+        markTripSettlementStatus(activeTrip.id, s.from, s.to, 'confirmed');
+        showToast(`Confirmed repayment from ${s.from} to ${s.to}!`);
+        renderGroupLedger();
+      });
+
+      card.querySelector('.btn-trip-reset')?.addEventListener('click', () => {
+        markTripSettlementStatus(activeTrip.id, s.from, s.to, 'unpaid');
+        showToast(`Reset repayment status to unpaid.`);
+        renderGroupLedger();
+      });
+
+      card.querySelector('.btn-trip-proof')?.addEventListener('click', () => {
+        sendWhatsAppPaymentProof({
+          debtorName: s.from,
+          collectorName: s.to,
+          collectorHandle: s.handle || '',
+          amount: s.amount,
+          currency: cur,
+          note: `Trip repayment for ${activeTrip.name}`
         });
       });
 
@@ -1413,6 +1703,9 @@ function loadSampleTrip() {
     splitBetween: ['Alice', 'Bob', 'Charlie', 'David']
   });
 
+  // Seed sample settlement status
+  markTripSettlementStatus(trip.id, 'Bob', 'Alice', 'paid', '10:15 AM');
+
   renderGroupLedger();
   showToast('Loaded sample Goa Trip with 4 members and expenses!');
 }
@@ -1421,10 +1714,22 @@ function loadSampleTrip() {
    Payment QR Modal Controller
    ========================================================================== */
 
-function openPaymentQRModal({ name, handle, amount, currency, note }) {
+function openPaymentQRModal({ name, handle, amount, currency, note, debtorName = '', sourceType = 'quick', from = '', to = '' }) {
   modalQr.classList.add('open');
 
   currentPayeeHandle = handle || '';
+  currentQRContext = {
+    debtorName: debtorName || '',
+    collectorName: name || 'Collector',
+    collectorHandle: handle || '',
+    amount: amount || 0,
+    currency: currency || '₹',
+    note: note || 'Tabby Bill Share',
+    sourceType: sourceType || 'quick',
+    from: from || '',
+    to: to || ''
+  };
+
   if (qrAvatarInitial) qrAvatarInitial.textContent = (name || 'P').charAt(0).toUpperCase();
   if (qrPayeeName) qrPayeeName.textContent = name || 'Host';
   if (qrPayeeHandle) qrPayeeHandle.textContent = handle ? handle : 'No UPI ID specified';
@@ -1439,6 +1744,38 @@ function openPaymentQRModal({ name, handle, amount, currency, note }) {
   });
 
   currentPaymentURI = payment?.uri || '';
+
+  // Check if already paid or confirmed
+  let isPaid = false;
+  let payMeta = '';
+
+  if (sourceType === 'quick' && debtorName) {
+    const pStat = quickState.paymentStatus[debtorName];
+    if (pStat && (pStat.status === 'paid' || pStat.status === 'confirmed')) {
+      isPaid = true;
+      payMeta = `Recorded at ${pStat.paidAt || 'earlier'}${pStat.status === 'confirmed' ? ' • Verified by Collector' : ' • Awaiting Collector Confirmation'}`;
+    }
+  } else if (sourceType === 'trip' && from && to) {
+    const trip = getActiveTrip();
+    if (trip) {
+      const sStat = getTripSettlementStatus(trip.id, from, to);
+      if (sStat && (sStat.status === 'paid' || sStat.status === 'confirmed')) {
+        isPaid = true;
+        payMeta = `Recorded at ${sStat.paidAt || 'earlier'}${sStat.status === 'confirmed' ? ' • Verified' : ' • Awaiting Confirmation'}`;
+      }
+    }
+  }
+
+  if (paymentPromptPanel && paymentConfirmedPanel) {
+    if (isPaid) {
+      paymentPromptPanel.style.display = 'none';
+      paymentConfirmedPanel.style.display = 'block';
+      if (paymentConfirmedMeta) paymentConfirmedMeta.textContent = payMeta;
+    } else {
+      paymentPromptPanel.style.display = 'block';
+      paymentConfirmedPanel.style.display = 'none';
+    }
+  }
 
   // Wire up Open in UPI app button
   if (btnOpenUpiIntent) {
@@ -1469,6 +1806,67 @@ function openPaymentQRModal({ name, handle, amount, currency, note }) {
   }
 }
 
+export function sendWhatsAppPaymentProof({ debtorName, collectorName, collectorHandle, amount, currency, note }) {
+  const text = formatPaymentProofMessage({ debtorName, collectorName, collectorHandle, amount, currency, note });
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+function initPaymentConfirmation() {
+  if (btnMarkPaid) {
+    btnMarkPaid.addEventListener('click', () => {
+      const { debtorName, collectorName, amount, currency, sourceType, from, to } = currentQRContext;
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (sourceType === 'quick' && debtorName) {
+        quickState.paymentStatus[debtorName] = {
+          status: 'paid',
+          paidAt: timeStr
+        };
+        renderQuickSplit();
+      } else if (sourceType === 'trip' && from && to) {
+        const trip = getActiveTrip();
+        if (trip) {
+          markTripSettlementStatus(trip.id, from, to, 'paid', timeStr);
+          renderGroupLedger();
+        }
+      }
+
+      if (paymentPromptPanel) paymentPromptPanel.style.display = 'none';
+      if (paymentConfirmedPanel) paymentConfirmedPanel.style.display = 'block';
+      if (paymentConfirmedMeta) paymentConfirmedMeta.textContent = `Recorded at ${timeStr} • Awaiting collector confirmation`;
+      showToast(`🎉 Payment of ${currency}${amount.toFixed(2)} to ${collectorName} marked complete!`);
+    });
+  }
+
+  if (btnUndoMarkPaid) {
+    btnUndoMarkPaid.addEventListener('click', () => {
+      const { debtorName, sourceType, from, to } = currentQRContext;
+
+      if (sourceType === 'quick' && debtorName) {
+        delete quickState.paymentStatus[debtorName];
+        renderQuickSplit();
+      } else if (sourceType === 'trip' && from && to) {
+        const trip = getActiveTrip();
+        if (trip) {
+          markTripSettlementStatus(trip.id, from, to, 'unpaid');
+          renderGroupLedger();
+        }
+      }
+
+      if (paymentPromptPanel) paymentPromptPanel.style.display = 'block';
+      if (paymentConfirmedPanel) paymentConfirmedPanel.style.display = 'none';
+      showToast('Payment status reset to unpaid.');
+    });
+  }
+
+  if (btnWhatsappProof) {
+    btnWhatsappProof.addEventListener('click', () => {
+      sendWhatsAppPaymentProof(currentQRContext);
+    });
+  }
+}
+
 /* ==========================================================================
    Initialization
    ========================================================================== */
@@ -1480,5 +1878,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initQuickSplit();
   initOcrAndPaste();
   initGroupLedger();
+  initPaymentConfirmation();
 });
 

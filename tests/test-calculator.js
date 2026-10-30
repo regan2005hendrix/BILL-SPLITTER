@@ -5,6 +5,7 @@ import {
   calculateEqualSplit,
   calculateItemizedSplit,
   formatWhatsAppSummary,
+  formatPaymentProofMessage,
   roundAmount
 } from '../js/calculator.js';
 
@@ -176,6 +177,23 @@ export function runCalculatorTests() {
     const bobW = weightedRes.breakdown.find(p => p.person === 'Bob');
     assertClose(aliceW.total, 20.00, 'Alice pays $20 for 2 shares of pizza');
     assertClose(bobW.total, 10.00, 'Bob pays $10 for 1 share of pizza');
+  }
+
+  // Test 7: WhatsApp payment proof message format
+  {
+    const proofMsg = formatPaymentProofMessage({
+      debtorName: 'Bob',
+      collectorName: 'Alice',
+      collectorHandle: 'alice@okhdfcbank',
+      amount: 249.00,
+      currency: '₹',
+      note: 'Masala Dosa & Tea'
+    });
+    assert(proofMsg.includes('Hi Alice!'), 'Proof contains collector name');
+    assert(proofMsg.includes('₹249.00'), 'Proof contains exact amount');
+    assert(proofMsg.includes('alice@okhdfcbank'), 'Proof contains collector UPI ID');
+    assert(proofMsg.includes('Masala Dosa & Tea'), 'Proof contains bill note');
+    assert(proofMsg.includes('- Bob'), 'Proof signed by debtor');
   }
 
   return { passed, failed };

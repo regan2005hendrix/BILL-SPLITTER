@@ -91,13 +91,55 @@ export function createTrip({ name = 'New Trip', location = '', currency = '₹',
     currency: currency || '₹',
     createdAt: new Date().toISOString(),
     members: members.length > 0 ? members : [{ name: 'Alice', handle: '' }],
-    expenses: []
+    expenses: [],
+    settlementStatus: {}
   };
 
   trips.push(newTrip);
   saveAllTrips(trips);
   setActiveTripId(newTrip.id);
   return newTrip;
+}
+
+/**
+ * Updates status of a trip settlement between two members
+ * @param {string} tripId
+ * @param {string} from
+ * @param {string} to
+ * @param {'unpaid'|'paid'|'confirmed'} status
+ * @param {string} [paidAt]
+ */
+export function markTripSettlementStatus(tripId, from, to, status = 'paid', paidAt = null) {
+  const trips = getAllTrips();
+  const trip = trips.find(t => t.id === tripId);
+  if (!trip) return null;
+
+  trip.settlementStatus = trip.settlementStatus || {};
+  const key = `${from.toLowerCase()}_to_${to.toLowerCase()}`;
+
+  if (status === 'unpaid') {
+    delete trip.settlementStatus[key];
+  } else {
+    trip.settlementStatus[key] = {
+      status,
+      paidAt: paidAt || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+  }
+
+  saveAllTrips(trips);
+  return trip;
+}
+
+/**
+ * Gets payment status for a specific settlement in a trip
+ */
+export function getTripSettlementStatus(tripId, from, to) {
+  const trips = getAllTrips();
+  const trip = trips.find(t => t.id === tripId);
+  if (!trip || !trip.settlementStatus) return { status: 'unpaid', paidAt: null };
+
+  const key = `${from.toLowerCase()}_to_${to.toLowerCase()}`;
+  return trip.settlementStatus[key] || { status: 'unpaid', paidAt: null };
 }
 
 /**

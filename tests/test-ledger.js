@@ -7,6 +7,8 @@ import {
   createTrip,
   updateTripDetails,
   removeMemberFromTrip,
+  markTripSettlementStatus,
+  getTripSettlementStatus,
   getActiveTrip
 } from '../js/ledger.js';
 
@@ -169,6 +171,20 @@ export function runLedgerTests() {
     const afterRemoval = removeMemberFromTrip(trip.id, 'Bob');
     assert(afterRemoval.members.length === 2, 'Member removed from trip');
     assert(!afterRemoval.members.some(m => m.name === 'Bob'), 'Bob no longer in trip members');
+
+    // Test 8: Settlement payment status tracking
+    markTripSettlementStatus(trip.id, 'Charlie', 'Alice', 'paid', '11:30 AM');
+    const status1 = getTripSettlementStatus(trip.id, 'Charlie', 'Alice');
+    assert(status1.status === 'paid', 'Settlement marked as paid');
+    assert(status1.paidAt === '11:30 AM', 'Settlement paidAt recorded');
+
+    markTripSettlementStatus(trip.id, 'Charlie', 'Alice', 'confirmed');
+    const status2 = getTripSettlementStatus(trip.id, 'Charlie', 'Alice');
+    assert(status2.status === 'confirmed', 'Settlement marked as confirmed');
+
+    markTripSettlementStatus(trip.id, 'Charlie', 'Alice', 'unpaid');
+    const status3 = getTripSettlementStatus(trip.id, 'Charlie', 'Alice');
+    assert(status3.status === 'unpaid', 'Settlement reset to unpaid');
   }
 
   return { passed, failed };
