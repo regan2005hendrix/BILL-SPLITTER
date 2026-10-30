@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isMember(groupId) {
+      return signedIn() && exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+    }
+    function isOwner(groupId) {
+      return isMember(groupId) && get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && userId == request.auth.uid;
+      allow create, update: if signedIn() && userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /groups/{groupId} {
+      allow read: if isMember(groupId);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(groupId);
+
+      match /members/{memberId} {
+        // The current user's own membership can be queried to discover groups.
+        allow read: if signedIn() && (resource.data.uid == request.auth.uid || isMember(groupId));
+        allow create: if signedIn() && (
+          (memberId == request.auth.uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'owner') ||
+          isOwner(groupId)
+        );
+        allow update, delete: if isOwner(groupId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isMember(groupId);
+        allow create: if isMember(groupId) && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if isOwner(groupId) || resource.data.createdBy == request.auth.uid;
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isMember(groupId);
+        allow create: if isMember(groupId)
+          && request.resource.data.submittedBy == request.auth.uid
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.status == 'submitted';
+        allow update: if isMember(groupId)
+          && resource.data.to == request.auth.uid
+          && resource.data.status == 'submitted'
+          && request.resource.data.status in ['confirmed', 'rejected']
+          && request.resource.data.reviewedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'reviewedAt', 'reviewedBy', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      // Invite tokens are only read and redeemed by Cloud Functions using the
+      // Admin SDK; browser clients never receive access to this collection.
+      match /invites/{inviteId} { allow read, write: if false; }
+    }
+  }
+}

@@ -41,6 +41,8 @@ import {
   generatePaymentURI
 } from './qr.js';
 
+import { initSharedUI } from './shared-ui.js';
+
 /* ==========================================================================
    Security: HTML Sanitization Utility
    ========================================================================== */
@@ -1882,5 +1884,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initOcrAndPaste();
   initGroupLedger();
   initPaymentConfirmation();
+  const sharedLedgerRoot = document.getElementById('shared-ledger-root');
+  if (sharedLedgerRoot) initSharedUI(sharedLedgerRoot, { getLocalTrip: getActiveTrip });
 });
 

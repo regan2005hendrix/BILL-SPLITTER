@@ -2,6 +2,7 @@ import { runCalculatorTests } from './test-calculator.js';
 import { runOcrParserTests } from './test-ocr-parser.js';
 import { runLedgerTests } from './test-ledger.js';
 import { runQrTests } from './test-qr.js';
+import { runSharedLedgerTests } from './test-shared-ledger.js';
 
 async function main() {
   console.log('Running All Tabby Test Suites...\n');
@@ -9,9 +10,10 @@ async function main() {
   const t2 = runOcrParserTests();
   const t3 = runLedgerTests();
   const t4 = runQrTests();
+  const t5 = runSharedLedgerTests();
 
-  const totalPassed = t1.passed + t2.passed + t3.passed + t4.passed;
-  const totalFailed = t1.failed + t2.failed + t3.failed + t4.failed;
+  const totalPassed = t1.passed + t2.passed + t3.passed + t4.passed + t5.passed;
+  const totalFailed = t1.failed + t2.failed + t3.failed + t4.failed + t5.failed;
 
   console.log('\n=============================================');
   console.log(`TOTAL: ${totalPassed} passed, ${totalFailed} failed.`);

@@ -1,4 +1,10 @@
 .superpowers/
 .agent/
 .agents/
-
+node_modules/
+firebase/functions/node_modules/
+.firebase/
+.vercel/
+.env*
+.DS_Store
+Thumbs.db

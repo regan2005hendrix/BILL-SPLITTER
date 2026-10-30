@@ -44,6 +44,10 @@
       const qrRes = runQrTests();
       appendLog(`QR & Payment URI Tests: ${qrRes.passed} passed, ${qrRes.failed} failed.`, qrRes.failed === 0 ? 'pass' : 'fail');
 
+      const { runSharedLedgerTests } = await import('./test-shared-ledger.js');
+      const sharedRes = runSharedLedgerTests();
+      appendLog(`Shared Ledger Tests: ${sharedRes.passed} passed, ${sharedRes.failed} failed.`, sharedRes.failed === 0 ? 'pass' : 'fail');
+
       const summaryDiv = document.createElement('h3');
       summaryDiv.textContent = 'ALL TEST SUITES PASSED (100% GREEN) ✔';
       summaryDiv.style.color = '#4ade80';
