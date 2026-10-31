@@ -198,3 +198,87 @@
   --shadow-status-confirmed: 0 1px 3px oklch(0% 0 0 / 0.3);
   --shadow-payment-success: 0 4px 14px oklch(0% 0 0 / 0.3);
 }
+
+/* ===========================================================================
+   Tabby redesign themes — selected light and dark dashboard concepts
+   ========================================================================== */
+:root {
+  --color-paper: #f7f8f4;
+  --color-paper-2: #edf3ec;
+  --color-paper-3: #e2ebe1;
+  --color-card: #ffffff;
+  --color-card-elevated: #ffffff;
+  --color-ink: #14251d;
+  --color-ink-2: #476154;
+  --color-muted: #708277;
+  --color-dim: #96a59b;
+  --color-rule: #dce6dc;
+  --color-rule-2: #c9d7ca;
+  --color-graphite: #163628;
+  --color-graphite-2: #214836;
+  --color-graphite-ink: #eff8f0;
+  --color-graphite-muted: #b6cbb9;
+  --color-graphite-rule: #315c43;
+  --color-accent: #176b48;
+  --color-accent-2: #7fcba1;
+  --color-accent-wash: #e5f3e8;
+  --color-accent-ink: #ffffff;
+  --color-focus: #176b48;
+  --color-accent-deep: #0f5135;
+  --color-accent-edge: #0c442d;
+  --color-accent-contrast: #0a402a;
+  --color-success: #23835b;
+  --color-success-wash: #e4f5eb;
+  --color-success-contrast: #14583a;
+  --color-danger: #bd4c47;
+  --color-danger-wash: #fbe9e7;
+  --color-danger-contrast: #852d29;
+  --color-key-face: #ffffff;
+  --color-key-edge: #b8cbbd;
+  --radius-card: 18px;
+  --radius-input: 11px;
+  --radius-key: 10px;
+  --shadow-card: 0 12px 30px rgba(21, 58, 36, 0.07), 0 2px 6px rgba(21, 58, 36, 0.03);
+  --shadow-key: 0 2px 0 var(--color-key-edge), 0 3px 7px rgba(21, 58, 36, 0.1);
+  --shadow-key-accent: 0 2px 0 var(--color-accent-edge), 0 7px 15px rgba(23, 107, 72, 0.20);
+  --shadow-brand-icon: 0 10px 20px rgba(23, 107, 72, 0.18);
+}
+
+[data-theme="dark"] {
+  --color-paper: #0d1210;
+  --color-paper-2: #141c18;
+  --color-paper-3: #1b2720;
+  --color-card: #151e1a;
+  --color-card-elevated: #1b2720;
+  --color-ink: #edf5ef;
+  --color-ink-2: #bed0c2;
+  --color-muted: #8da493;
+  --color-dim: #65796a;
+  --color-rule: #28362e;
+  --color-rule-2: #3a4c40;
+  --color-graphite: #080c0a;
+  --color-graphite-2: #111813;
+  --color-graphite-ink: #eff8f0;
+  --color-graphite-muted: #9eb4a3;
+  --color-graphite-rule: #2e4034;
+  --color-accent: #66d796;
+  --color-accent-2: #a3edbc;
+  --color-accent-wash: #193d29;
+  --color-accent-ink: #0b2114;
+  --color-focus: #8febaf;
+  --color-accent-deep: #48b978;
+  --color-accent-edge: #28774d;
+  --color-accent-contrast: #c9f6d7;
+  --color-success: #68d69a;
+  --color-success-wash: #183b28;
+  --color-success-contrast: #b8f4cf;
+  --color-danger: #fb8179;
+  --color-danger-wash: #3f211f;
+  --color-danger-contrast: #ffb8b2;
+  --color-key-face: #1d2821;
+  --color-key-edge: #0b110d;
+  --shadow-card: 0 18px 42px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-key: 0 2px 0 var(--color-key-edge), 0 4px 10px rgba(0, 0, 0, 0.34);
+  --shadow-key-accent: 0 2px 0 #28774d, 0 8px 18px rgba(102, 215, 150, 0.12);
+  --shadow-brand-icon: 0 10px 24px rgba(102, 215, 150, 0.12);
+}
