@@ -6,7 +6,7 @@
   <title>Tabby: Bill Splitter &amp; Shared Expense Ledger</title>
   <meta name="description" content="Ultra-clean, privacy-first bill splitter and trip expense ledger with in-browser OCR receipt scanning and direct UPI bank payments.">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#000000">
 
   <!-- Hallmark Cobalt Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,8 +46,9 @@
     </header>
 
     <!-- Navigation Tabs -->
-    <nav class="mode-tabs" aria-label="Split Modes">
-      <button class="tab-btn active" data-tab="quick-split">
+    <nav class="mode-tabs" aria-label="Main navigation">
+      <button class="tab-btn active" data-tab="dashboard"><span>Dashboard</span></button>
+      <button class="tab-btn" data-tab="quick-split">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
         <span>Quick Split (Meals)</span>
       </button>
@@ -55,37 +56,27 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Group Ledger (Trips)</span>
       </button>
+      <button class="tab-btn" data-tab="history"><span>History &amp; Transactions</span></button>
+      <button class="tab-btn" data-tab="analytics"><span>Analytics</span></button>
+      <button class="tab-btn" data-tab="profile"><span>Profile &amp; Settings</span></button>
     </nav>
+
+    <main id="view-dashboard" class="view-panel active">
+      <section class="panel simple-dashboard">
+        <div class="panel-header"><div><p class="panel-desc">YOUR SHARED MONEY SPACE</p><h1 class="panel-title">Split bills. Share better.</h1><p class="panel-desc">A simple place to split a meal or settle group expenses.</p></div></div>
+        <div class="dashboard-summary" id="dashboard-summary" aria-live="polite"></div>
+        <div class="dashboard-actions">
+          <button class="key key--primary" type="button" data-go="quick-split">Start a Quick Split</button>
+          <button class="key" type="button" data-go="group-ledger">Open Group Ledger</button>
+        </div>
+        <section class="dashboard-recent"><div class="panel-header"><h2 class="panel-title">Recent activity</h2><button class="key key--sm" type="button" data-go="history">View history</button></div><div id="dashboard-recent-list"></div></section>
+      </section>
+    </main>
 
     <!-- ======================================================================
          MODE 1: QUICK SPLIT VIEW
          ====================================================================== -->
-    <main id="view-quick-split" class="view-panel active">
-      <section class="tabby-dashboard-intro" aria-labelledby="dashboard-intro-title">
-        <div class="dashboard-intro-copy">
-          <span class="dashboard-eyebrow">YOUR SHARED MONEY SPACE</span>
-          <h1 id="dashboard-intro-title">Split the good times,<br>not the stress.</h1>
-          <p>Build a bill together, send a payment link, and see exactly who is settled — all in one calm workspace.</p>
-          <div class="dashboard-intro-stats" aria-label="Current workspace status">
-            <div><strong>0</strong><span>Open bills</span></div>
-            <div><strong>0</strong><span>Payments due</span></div>
-            <div><strong>₹0</strong><span>Settled today</span></div>
-          </div>
-        </div>
-        <div class="dashboard-visual" aria-hidden="true">
-          <div class="visual-orbit orbit-one"></div>
-          <div class="visual-orbit orbit-two"></div>
-          <div class="visual-person person-one"><span>R</span></div>
-          <div class="visual-person person-two"><span>M</span></div>
-          <div class="visual-person person-three"><span>A</span></div>
-          <div class="visual-receipt">
-            <span class="receipt-brand">tabby</span>
-            <i></i><i></i><i></i>
-            <strong>₹ 690.00</strong>
-          </div>
-          <div class="visual-paid-pill">✓ Settled together</div>
-        </div>
-      </section>
+    <main id="view-quick-split" class="view-panel">
       <div class="grid-two-col">
         <!-- Left: Inputs & Items -->
         <section class="panel">
@@ -324,6 +315,19 @@
           </div>
         </section>
       </div>
+    </main>
+
+    <main id="view-history" class="view-panel">
+      <section class="panel"><div class="panel-header"><div><h1 class="panel-title">History &amp; Transactions</h1><p class="panel-desc">Expenses saved in your existing trip ledgers.</p></div></div><div id="history-content"></div></section>
+    </main>
+    <main id="view-analytics" class="view-panel">
+      <section class="panel"><div class="panel-header"><div><h1 class="panel-title">Analytics</h1><p class="panel-desc">A clear summary of your saved group expenses.</p></div></div><div id="analytics-content"></div></section>
+    </main>
+    <main id="view-profile" class="view-panel">
+      <section class="panel"><div class="panel-header"><div><h1 class="panel-title">Profile &amp; Settings</h1><p class="panel-desc">Manage your appearance and shared profile.</p></div></div>
+        <div class="settings-row"><div><strong>Appearance</strong><p class="panel-desc">Choose light or AMOLED black dark mode.</p></div><button id="profile-theme-toggle" class="key" type="button">Switch theme</button></div>
+        <div class="settings-row"><div><strong>Shared profile and account</strong><p class="panel-desc">Sign in, update your profile, and manage shared groups.</p></div><button class="key" type="button" data-go="group-ledger">Open Group Ledger</button></div>
+      </section>
     </main>
 
     <!-- ======================================================================
