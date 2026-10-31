@@ -4,32 +4,29 @@
  * This module is intentionally isolated from the local ledger so Quick Split
  * and existing browser-only trips continue working without a Firebase project.
  */
-import { firebaseConfig, firebaseEnabled } from './firebase-config.js';
+import { firebaseConfig, firebaseEnabled, firebaseDatabaseId } from './firebase-config.js';
 
 let sdk = null;
 let auth = null;
 let db = null;
-let functions = null;
 
 const SDK_VERSION = '10.14.1';
 
 export async function initialiseSharedLedger() {
   if (!firebaseEnabled) return { enabled: false };
-  if (sdk) return { enabled: true, auth, db, functions };
+  if (sdk) return { enabled: true, auth, db };
 
-  const [appSdk, authSdk, firestoreSdk, functionsSdk] = await Promise.all([
+  const [appSdk, authSdk, firestoreSdk] = await Promise.all([
     import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-app.js`),
     import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`),
-    import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-firestore.js`),
-    import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-functions.js`)
+    import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-firestore.js`)
   ]);
 
   const app = appSdk.initializeApp(firebaseConfig);
   auth = authSdk.getAuth(app);
-  db = firestoreSdk.getFirestore(app);
-  functions = functionsSdk.getFunctions(app);
-  sdk = { ...authSdk, ...firestoreSdk, ...functionsSdk };
-  return { enabled: true, auth, db, functions };
+  db = firestoreSdk.getFirestore(app, firebaseDatabaseId);
+  sdk = { ...authSdk, ...firestoreSdk };
+  return { enabled: true, auth, db };
 }
 
 export function isSharedLedgerEnabled() {
@@ -40,7 +37,10 @@ export async function observeAuth(callback) {
   const ready = await initialiseSharedLedger();
   if (!ready.enabled) return () => callback(null);
   return sdk.onAuthStateChanged(auth, async user => {
-    if (user) await upsertProfile(user);
+    if (user) {
+      try { await upsertProfile(user); }
+      catch (error) { console.error('Profile creation failed:', error); }
+    }
     callback(user || null);
   });
 }
@@ -211,16 +211,52 @@ export async function reviewPayment(groupId, paymentId, status) {
   });
 }
 
-export async function createInvite(groupId, email = '', memberId = '') {
+export async function createPaymentLink(group, route) {
   await initialiseSharedLedger();
-  const call = sdk.httpsCallable(functions, 'createInvite');
-  return call({ groupId, email, memberId });
+  if (!auth.currentUser || group.ownerId !== auth.currentUser.uid) throw new Error('Only the group owner can create payment links.');
+  const payee = (group.members || []).find(member => member.id === route.to) || {};
+  const payer = (group.members || []).find(member => member.id === route.from) || {};
+  const ref = sdk.doc(sdk.collection(db, 'paymentLinks'));
+  await sdk.setDoc(ref, {
+    groupId: group.id, ownerId: auth.currentUser.uid, from: route.from, to: route.to,
+    fromName: payer.name || 'Member', toName: payee.name || 'Collector', upiHandle: payee.handle || '',
+    amount: Number(route.amount), currency: group.currency || '₹', status: 'pending',
+    createdAt: sdk.serverTimestamp(), updatedAt: sdk.serverTimestamp()
+  });
+  return { id: ref.id };
 }
 
-export async function redeemInvite(token) {
+export function observePaymentLinks(ownerId, callback) {
+  if (!sdk || !ownerId) return () => {};
+  const links = sdk.query(sdk.collection(db, 'paymentLinks'), sdk.where('ownerId', '==', ownerId));
+  return sdk.onSnapshot(links, snapshot => callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
+}
+
+export function observePublicPaymentLink(linkId, callback) {
+  if (!sdk || !linkId) return () => {};
+  return sdk.onSnapshot(sdk.doc(db, 'paymentLinks', linkId), snapshot => callback(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null));
+}
+
+export async function submitPublicPaymentLink(linkId) {
   await initialiseSharedLedger();
-  const call = sdk.httpsCallable(functions, 'redeemInvite');
-  return call({ token });
+  return sdk.updateDoc(sdk.doc(db, 'paymentLinks', linkId), {
+    status: 'submitted', submittedAt: sdk.serverTimestamp(), updatedAt: sdk.serverTimestamp()
+  });
+}
+
+export async function confirmPaymentLink(link) {
+  await initialiseSharedLedger();
+  if (!auth.currentUser || link.ownerId !== auth.currentUser.uid) throw new Error('Only the group owner can confirm this payment.');
+  const batch = sdk.writeBatch(db);
+  batch.update(sdk.doc(db, 'paymentLinks', link.id), {
+    status: 'confirmed', reviewedAt: sdk.serverTimestamp(), reviewedBy: auth.currentUser.uid, updatedAt: sdk.serverTimestamp()
+  });
+  batch.set(sdk.doc(sdk.collection(db, 'groups', link.groupId, 'payments')), {
+    from: link.from, to: link.to, amount: Number(link.amount), status: 'confirmed',
+    submittedBy: auth.currentUser.uid, reviewedBy: auth.currentUser.uid,
+    submittedAt: sdk.serverTimestamp(), reviewedAt: sdk.serverTimestamp(), updatedAt: sdk.serverTimestamp(), source: 'payment-link'
+  });
+  return batch.commit();
 }
 
 export function calculateSharedBalances(group) {

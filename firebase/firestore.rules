@@ -38,10 +38,13 @@ service cloud.firestore {
 
       match /payments/{paymentId} {
         allow read: if isMember(groupId);
-        allow create: if isMember(groupId)
+        allow create: if (isMember(groupId)
           && request.resource.data.submittedBy == request.auth.uid
           && request.resource.data.from == request.auth.uid
-          && request.resource.data.status == 'submitted';
+          && request.resource.data.status == 'submitted')
+          || (isOwner(groupId)
+            && request.resource.data.status == 'confirmed'
+            && request.resource.data.source == 'payment-link');
         allow update: if isMember(groupId)
           && resource.data.to == request.auth.uid
           && resource.data.status == 'submitted'
@@ -52,9 +55,29 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Invite tokens are only read and redeemed by Cloud Functions using the
-      // Admin SDK; browser clients never receive access to this collection.
-      match /invites/{inviteId} { allow read, write: if false; }
+    }
+
+    // A payment-link ID is an unguessable capability. Anyone holding a link
+    // may read its amount and change it exactly once from pending to submitted;
+    // only the owner can confirm it and apply it to the private group ledger.
+    match /paymentLinks/{linkId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow list: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow get: if true;
+      allow update: if (
+        resource.data.ownerId == request.auth.uid
+        && resource.data.status == 'submitted'
+        && request.resource.data.status == 'confirmed'
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'reviewedAt', 'reviewedBy', 'updatedAt'])
+      ) || (
+        resource.data.status == 'pending'
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'submittedAt', 'updatedAt'])
+      );
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
   }
 }

@@ -3,7 +3,8 @@ import {
   sendEmailSignInLink, completeEmailSignIn, signOutSharedUser, upsertProfile,
   getProfile,
   createSharedGroup, observeSharedGroups, observeSharedGroup, addSharedExpense,
-  submitPayment, reviewPayment, createInvite, redeemInvite, calculateSharedBalances
+  createPaymentLink, observePaymentLinks, observePublicPaymentLink, submitPublicPaymentLink,
+  confirmPaymentLink, calculateSharedBalances
 } from './shared-ledger.js';
 
 let root;
@@ -15,6 +16,8 @@ let activeGroup = null;
 let stopGroups = null;
 let stopGroup = null;
 let getLocalTrip = null;
+let paymentLinks = [];
+let stopPaymentLinks = null;
 
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
 const amount = (currency, value) => `${currency || '₹'}${(Number(value) || 0).toFixed(2)}`;
@@ -65,6 +68,23 @@ function renderSignedOut() {
     event.preventDefault();
     await run(() => sendEmailSignInLink(root.querySelector('#shared-email').value), 'Check your email for the secure sign-in link.');
   });
+}
+
+function renderPublicPaymentLink(link) {
+  if (!link) {
+    root.innerHTML = '<section class="panel"><h2 class="panel-title">Payment link unavailable</h2><p class="panel-desc">This payment link is invalid or has been removed.</p></section>';
+    return;
+  }
+  const paid = link.status === 'confirmed';
+  const submitted = link.status === 'submitted';
+  root.innerHTML = `<section class="panel" style="max-width:620px; margin:var(--space-xl) auto;">
+    <h2 class="panel-title">Payment request</h2>
+    <p class="panel-desc">${esc(link.fromName)} owes ${esc(link.toName)}</p>
+    <div class="receipt-card"><div class="summary-row"><span>Amount due</span><strong class="mono amount">${amount(link.currency, link.amount)}</strong></div>${link.upiHandle ? `<div class="summary-row"><span>Pay to UPI</span><span class="mono">${esc(link.upiHandle)}</span></div>` : ''}</div>
+    <p class="panel-desc" style="margin-top:var(--space-md)">${paid ? 'Payment confirmed by the collector.' : submitted ? 'Payment submitted — waiting for the collector to confirm it.' : 'After making the transfer, mark it as paid so the collector can verify it.'}</p>
+    ${!paid && !submitted ? '<button id="public-paid" class="key key--primary" type="button">I have paid</button>' : ''}
+  </section>`;
+  root.querySelector('#public-paid')?.addEventListener('click', () => run(() => submitPublicPaymentLink(link.id), 'Payment submitted for verification.'));
 }
 
 function renderProfileAndGroups() {
@@ -136,23 +156,20 @@ function renderGroupContent() {
     const status = member.uid ? 'Active profile' : 'Invite pending';
     return `<div class="summary-row"><span>${esc(member.name)} <small style="color:var(--color-muted)">${status}</small></span><span class="mono" style="color:${value < -0.005 ? 'var(--color-danger)' : value > 0.005 ? 'var(--color-success)' : 'var(--color-muted)'}">${value > 0 ? '+' : ''}${amount(currency, value)}</span></div>`;
   }).join('');
-  const paymentRows = activeGroup.payments.slice().sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)).map(payment => {
-    const canReview = payment.to === user.uid && payment.status === 'submitted';
-    return `<div class="summary-row" style="align-items:center"><span>${esc(memberName(activeGroup, payment.from))} → ${esc(memberName(activeGroup, payment.to))}<br><small style="color:var(--color-muted)">${esc(payment.status)}</small></span><span class="mono">${amount(currency, payment.amount)} ${canReview ? `<button class="key key--sm shared-review" data-id="${esc(payment.id)}" data-status="confirmed">Confirm</button><button class="key key--sm shared-review" data-id="${esc(payment.id)}" data-status="rejected">Reject</button>` : ''}</span></div>`;
-  }).join('') || '<p class="panel-desc">No payment activity yet.</p>';
+  const paymentRows = activeGroup.payments.slice().sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)).map(payment => `<div class="summary-row"><span>${esc(memberName(activeGroup, payment.from))} → ${esc(memberName(activeGroup, payment.to))}<br><small style="color:var(--color-muted)">${esc(payment.status)}</small></span><span class="mono">${amount(currency, payment.amount)}</span></div>`).join('') || '<p class="panel-desc">No confirmed payments yet.</p>';
+  const canManage = activeGroup.ownerId === user.uid;
   const routeRows = settlements(activeGroup).map(route => {
-    const awaiting = activeGroup.payments.some(payment => payment.from === route.from && payment.to === route.to && payment.status === 'submitted');
-    const canPay = route.from === user.uid && !awaiting;
-    return `<div class="person-share-card" style="margin-bottom:var(--space-xs)"><strong>${esc(memberName(activeGroup, route.from))} → ${esc(memberName(activeGroup, route.to))}</strong><br><span class="mono">${amount(currency, route.amount)}</span>${awaiting ? '<span class="status-badge-paid" style="margin-left:8px">Awaiting verification</span>' : ''}${canPay ? `<button class="key key--sm key--primary shared-submit-payment" data-from="${esc(route.from)}" data-to="${esc(route.to)}" data-amount="${route.amount}" style="margin-left:8px">I paid</button>` : ''}</div>`;
+    const existingLink = paymentLinks.find(link => link.groupId === activeGroup.id && link.from === route.from && link.to === route.to && link.status !== 'confirmed');
+    return `<div class="person-share-card" style="margin-bottom:var(--space-xs)"><strong>${esc(memberName(activeGroup, route.from))} → ${esc(memberName(activeGroup, route.to))}</strong><br><span class="mono">${amount(currency, route.amount)}</span>${existingLink ? `<span class="status-badge-paid" style="margin-left:8px">${esc(existingLink.status)}</span>` : ''}${canManage && !existingLink ? `<button class="key key--sm key--primary shared-create-link" data-from="${esc(route.from)}" data-to="${esc(route.to)}" data-amount="${route.amount}" style="margin-left:8px">Create payment link</button>` : ''}</div>`;
   }).join('') || '<p class="panel-desc">Everyone is settled up.</p>';
   const memberOptions = activeGroup.members.map(member => `<option value="${esc(member.id)}">${esc(member.name)}</option>`).join('');
-  const canManage = activeGroup.ownerId === user.uid;
-  const unclaimedOptions = activeGroup.members.filter(member => !member.uid).map(member => `<option value="${esc(member.id)}">${esc(member.name)}</option>`).join('');
+  const groupLinks = paymentLinks.filter(link => link.groupId === activeGroup.id);
+  const linkRows = groupLinks.map(link => `<div class="summary-row"><span>${esc(link.fromName)} → ${esc(link.toName)}<br><small style="color:var(--color-muted)">${esc(link.status)}</small></span><span>${link.status === 'submitted' ? `<button class="key key--sm key--primary shared-confirm-link" data-id="${esc(link.id)}">Confirm received</button>` : ''}</span></div>`).join('') || '<p class="panel-desc">Create a payment link for each outstanding repayment.</p>';
   container.innerHTML = `
     <section class="panel" style="margin-bottom:var(--space-lg)">
       <div class="panel-header"><div><h2 class="panel-title">${esc(activeGroup.name)}</h2><p class="panel-desc">Your position: <strong>${mine < -0.005 ? `You owe ${amount(currency, -mine)}` : mine > 0.005 ? `You are owed ${amount(currency, mine)}` : 'Settled up'}</strong></p></div></div>
       <div class="receipt-card">${memberRows}</div>
-      ${canManage ? `<form id="shared-invite-form" class="form-row" style="margin-top:var(--space-md)">${unclaimedOptions ? `<select id="shared-invite-member" class="input"><option value="">New member</option>${unclaimedOptions}</select>` : ''}<input id="shared-invite-email" class="input" type="email" placeholder="Invitee email (optional)" style="flex:1"><button class="key" type="submit">Create invite link</button></form><p id="shared-invite-output" class="mono" style="font-size:11px; overflow-wrap:anywhere"></p>` : ''}
+      ${canManage ? `<div style="margin-top:var(--space-md)"><h3 class="panel-title" style="font-size:var(--text-sm)">Shared payment links</h3>${linkRows}</div>` : ''}
     </section>
     <section class="panel" style="margin-bottom:var(--space-lg)">
       <h3 class="panel-title">Log a shared expense</h3>
@@ -170,18 +187,15 @@ function renderGroupContent() {
     if (!splitBetween.length) return notify('Select at least one member.');
     await run(() => addSharedExpense(activeGroup.id, { title: container.querySelector('#shared-expense-title').value, amount: container.querySelector('#shared-expense-amount').value, paidBy: container.querySelector('#shared-expense-payer').value, splitBetween }), 'Expense saved.');
   });
-  container.querySelector('#shared-invite-form')?.addEventListener('submit', async event => {
-    event.preventDefault();
-    await run(async () => {
-      const result = await createInvite(activeGroup.id, container.querySelector('#shared-invite-email').value, container.querySelector('#shared-invite-member')?.value || '');
-      const token = result.data.token;
-      const link = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(token)}`;
-      container.querySelector('#shared-invite-output').textContent = link;
-      await navigator.clipboard?.writeText(link);
-    }, 'Invite link copied.');
-  });
-  container.querySelectorAll('.shared-submit-payment').forEach(button => button.addEventListener('click', () => run(() => submitPayment(activeGroup.id, button.dataset), 'Payment submitted for verification.')));
-  container.querySelectorAll('.shared-review').forEach(button => button.addEventListener('click', () => run(() => reviewPayment(activeGroup.id, button.dataset.id, button.dataset.status), `Payment ${button.dataset.status}.`)));
+  container.querySelectorAll('.shared-create-link').forEach(button => button.addEventListener('click', () => run(async () => {
+    const link = await createPaymentLink(activeGroup, button.dataset);
+    const url = `${window.location.origin}${window.location.pathname}?pay=${encodeURIComponent(link.id)}`;
+    await navigator.clipboard?.writeText(url);
+  }, 'Payment link copied. Send it by WhatsApp or email.')));
+  container.querySelectorAll('.shared-confirm-link').forEach(button => button.addEventListener('click', () => {
+    const link = paymentLinks.find(item => item.id === button.dataset.id);
+    if (link) run(() => confirmPaymentLink(link), 'Payment confirmed and applied to balances.');
+  }));
 }
 
 function selectGroup(groupId) {
@@ -202,7 +216,18 @@ function notify(message) {
 
 async function run(action, successMessage = '') {
   try { await action(); if (successMessage) notify(successMessage); }
-  catch (error) { console.error(error); notify(error.message || 'Something went wrong.'); }
+  catch (error) { console.error(error); notify(describeFirebaseError(error)); }
+}
+
+function describeFirebaseError(error) {
+  const code = error?.code || '';
+  if (code === 'auth/operation-not-allowed') return 'Google sign-in is disabled. Enable Google in Firebase Authentication → Sign-in method.';
+  if (code === 'auth/unauthorized-domain') return 'This site is not an authorized Firebase domain. Add its domain in Authentication → Settings → Authorized domains.';
+  if (code === 'auth/popup-blocked') return 'Your browser blocked the Google pop-up. Allow pop-ups for this site, then try again.';
+  if (code === 'auth/popup-closed-by-user') return 'Google sign-in was cancelled before it finished.';
+  if (code === 'auth/invalid-api-key') return 'The Firebase API key is invalid. Recheck js/firebase-config.js.';
+  if (code === 'permission-denied' || code === 'firestore/permission-denied') return 'Firestore denied this action. Deploy the updated Firestore rules below.';
+  return error?.message || 'Something went wrong.';
 }
 
 export async function initSharedUI(container, options = {}) {
@@ -210,7 +235,8 @@ export async function initSharedUI(container, options = {}) {
   getLocalTrip = options.getLocalTrip || null;
   if (!isSharedLedgerEnabled()) return renderSetupMessage();
   await initialiseSharedLedger();
-  const inviteToken = new URLSearchParams(window.location.search).get('invite');
+  const paymentLinkId = new URLSearchParams(window.location.search).get('pay');
+  if (paymentLinkId) return observePublicPaymentLink(paymentLinkId, renderPublicPaymentLink);
   // Email-link sign-in must finish on the same browser (or ask for the email
   // address once when the user opened the link somewhere else).
   try {
@@ -225,8 +251,10 @@ export async function initSharedUI(container, options = {}) {
   observeAuth(async currentUser => {
     user = currentUser;
     if (!user) { if (stopGroups) stopGroups(); groups = []; activeGroup = null; profile = null; return renderSignedOut(); }
-    profile = await getProfile(user.uid);
-    if (inviteToken) await run(() => redeemInvite(inviteToken), 'Invite redeemed. You can now access the group.');
+    try { profile = await getProfile(user.uid); }
+    catch (error) { console.error('Profile read failed:', error); profile = null; notify(describeFirebaseError(error)); }
+    if (stopPaymentLinks) stopPaymentLinks();
+    stopPaymentLinks = observePaymentLinks(user.uid, links => { paymentLinks = links; renderGroupContent(); });
     stopGroups = observeSharedGroups(user.uid, nextGroups => {
       groups = nextGroups;
       if (!selectedGroupId || !groups.some(group => group.id === selectedGroupId)) selectedGroupId = groups[0]?.id || '';

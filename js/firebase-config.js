@@ -19,3 +19,7 @@ export const firebaseConfig = {
 export const firebaseEnabled = Boolean(
   firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId
 );
+
+// This project uses the Firestore database ID `default` (not Firebase's
+// conventional `(default)` ID). Keep this aligned with Firebase Console.
+export const firebaseDatabaseId = 'default';
