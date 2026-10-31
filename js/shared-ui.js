@@ -18,6 +18,7 @@ let stopGroup = null;
 let getLocalTrip = null;
 let paymentLinks = [];
 let stopPaymentLinks = null;
+let headerGoogleButton = null;
 
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
 const amount = (currency, value) => `${currency || '₹'}${(Number(value) || 0).toFixed(2)}`;
@@ -45,6 +46,7 @@ function settlements(group) {
 }
 
 function renderSetupMessage() {
+  if (headerGoogleButton) headerGoogleButton.hidden = true;
   root.innerHTML = `
     <section class="panel" style="margin-bottom: var(--space-lg);">
       <h2 class="panel-title">Shared profiles</h2>
@@ -54,16 +56,15 @@ function renderSetupMessage() {
 }
 
 function renderSignedOut() {
+  if (headerGoogleButton) headerGoogleButton.hidden = false;
   root.innerHTML = `
     <section class="panel" style="margin-bottom: var(--space-lg);">
       <div class="panel-header"><div><h2 class="panel-title">Shared group ledger</h2><p class="panel-desc">Sign in to join private groups and track verified repayments.</p></div></div>
-      <div class="form-row"><button id="shared-google" class="key key--primary" type="button">Continue with Google</button></div>
       <form id="shared-email-form" class="form-row" style="margin-top: var(--space-sm);">
         <input id="shared-email" class="input" type="email" required placeholder="you@example.com" style="flex:1;">
         <button class="key" type="submit">Email me a sign-in link</button>
       </form>
     </section>`;
-  root.querySelector('#shared-google').addEventListener('click', async () => run(signInWithGoogle, 'Signed in.'));
   root.querySelector('#shared-email-form').addEventListener('submit', async event => {
     event.preventDefault();
     await run(() => sendEmailSignInLink(root.querySelector('#shared-email').value), 'Check your email for the secure sign-in link.');
@@ -88,6 +89,7 @@ function renderPublicPaymentLink(link) {
 }
 
 function renderProfileAndGroups() {
+  if (headerGoogleButton) headerGoogleButton.hidden = true;
   const groupOptions = groups.map(group => `<option value="${esc(group.id)}" ${group.id === selectedGroupId ? 'selected' : ''}>${esc(group.name)}</option>`).join('');
   root.innerHTML = `
     <section class="panel" style="margin-bottom: var(--space-lg);">
@@ -232,6 +234,8 @@ function describeFirebaseError(error) {
 
 export async function initSharedUI(container, options = {}) {
   root = container;
+  headerGoogleButton = document.getElementById('header-google-signin');
+  headerGoogleButton?.addEventListener('click', async () => run(signInWithGoogle, 'Signed in.'));
   getLocalTrip = options.getLocalTrip || null;
   if (!isSharedLedgerEnabled()) return renderSetupMessage();
   await initialiseSharedLedger();
@@ -251,6 +255,7 @@ export async function initSharedUI(container, options = {}) {
   observeAuth(async currentUser => {
     user = currentUser;
     if (!user) { if (stopGroups) stopGroups(); groups = []; activeGroup = null; profile = null; return renderSignedOut(); }
+    if (headerGoogleButton) headerGoogleButton.hidden = true;
     try { profile = await getProfile(user.uid); }
     catch (error) { console.error('Profile read failed:', error); profile = null; notify(describeFirebaseError(error)); }
     if (stopPaymentLinks) stopPaymentLinks();
