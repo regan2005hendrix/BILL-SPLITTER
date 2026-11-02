@@ -1088,3 +1088,46 @@ body {
   .dashboard-visual { display: none; }
   .dashboard-intro-stats { gap: 16px; }
 }
+
+/* Simple multi-page workspace and AMOLED dark theme. */
+html, body { background: var(--color-paper); }
+[data-theme="dark"] body { background: #000; }
+.mode-tabs {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  gap: 4px;
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+.tab-btn { flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; }
+.tab-btn.active { background: var(--color-paper-3); color: var(--color-accent); box-shadow: none; }
+.simple-dashboard { max-width: 100%; }
+.dashboard-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.summary-tile { display: grid; gap: 4px; padding: 16px; background: var(--color-paper-2); border: 1px solid var(--color-rule); border-radius: var(--radius-input); }
+.summary-tile strong { font-size: 1.25rem; color: var(--color-ink); }
+.summary-tile span, .overview-row span { color: var(--color-muted); font-size: var(--text-sm); }
+.dashboard-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.dashboard-recent { margin-top: 20px; }
+.overview-row, .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--color-rule); }
+.overview-row > div { display: grid; gap: 2px; }
+.overview-row > strong { white-space: nowrap; }
+.overview-empty { padding: 18px 4px; }
+.settings-row { padding: 18px 4px; }
+.settings-row .panel-desc { margin: 3px 0 0; }
+[data-theme="dark"] .panel,
+[data-theme="dark"] .receipt-card,
+[data-theme="dark"] .section-card { background-color: #080808; border-color: #252a26; }
+[data-theme="dark"] .input,
+[data-theme="dark"] select.input,
+[data-theme="dark"] textarea.input { background-color: #080808; color: #f5f7f5; border-color: #38413a; }
+[data-theme="dark"] .key { background-color: #111411; color: #f5f7f5; border-color: #38413a; }
+[data-theme="dark"] .key--primary { background: #176b48; color: #fff; border-color: #176b48; }
+[data-theme="dark"] .mode-tabs { background: #050505; border-color: #252a26; }
+@media (max-width: 600px) {
+  .dashboard-summary { grid-template-columns: 1fr; }
+  .simple-dashboard { padding: 18px; }
+  .overview-row, .settings-row { align-items: flex-start; }
+  .settings-row { flex-direction: column; }
+}

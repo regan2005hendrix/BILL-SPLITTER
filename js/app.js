@@ -237,11 +237,14 @@ const btnUndoMarkPaid = document.getElementById('btn-undo-mark-paid');
 
 function initTheme() {
   const saved = localStorage.getItem('tabby_theme');
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = saved ? saved === 'dark' : prefersDark;
+  const isDark = saved ? saved === 'dark' : true;
 
   applyTheme(isDark);
   themeToggleBtn.addEventListener('click', () => {
+    const currentlyDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    applyTheme(!currentlyDark);
+  });
+  document.getElementById('profile-theme-toggle')?.addEventListener('click', () => {
     const currentlyDark = document.documentElement.getAttribute('data-theme') === 'dark';
     applyTheme(!currentlyDark);
   });
@@ -251,14 +254,17 @@ const MOON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 const SUN_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 
 function applyTheme(isDark) {
+  const settingsToggle = document.getElementById('profile-theme-toggle');
   if (isDark) {
     document.documentElement.setAttribute('data-theme', 'dark');
     themeIcon.innerHTML = SUN_SVG;
     localStorage.setItem('tabby_theme', 'dark');
+    if (settingsToggle) settingsToggle.textContent = 'Switch to light mode';
   } else {
     document.documentElement.removeAttribute('data-theme');
     themeIcon.innerHTML = MOON_SVG;
     localStorage.setItem('tabby_theme', 'light');
+    if (settingsToggle) settingsToggle.textContent = 'Switch to dark mode';
   }
 }
 
@@ -312,18 +318,41 @@ function initTabs() {
       const targetTab = btn.getAttribute('data-tab');
       modeTabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
-      if (targetTab === 'quick-split') {
-        viewQuickSplit.classList.add('active');
-        viewGroupLedger.classList.remove('active');
-        renderQuickSplit();
-      } else {
-        viewQuickSplit.classList.remove('active');
-        viewGroupLedger.classList.add('active');
-        renderGroupLedger();
-      }
+      showView(targetTab);
     });
   });
+  document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => {
+    const target = button.getAttribute('data-go');
+    modeTabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === target));
+    showView(target);
+  }));
+  renderOverview();
+}
+
+function showView(targetTab) {
+  document.querySelectorAll('.view-panel').forEach(panel => panel.classList.toggle('active', panel.id === `view-${targetTab}`));
+  if (targetTab === 'quick-split') renderQuickSplit();
+  if (targetTab === 'group-ledger') renderGroupLedger();
+  if (['dashboard', 'history', 'analytics'].includes(targetTab)) renderOverview();
+}
+
+function renderOverview() {
+  const trips = getAllTrips();
+  const expenses = trips.flatMap(trip => (trip.expenses || []).map(expense => ({ ...expense, tripName: trip.name, currency: trip.currency || '₹' })));
+  const total = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+  const recent = [...expenses].sort((a, b) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || ''))).slice(0, 5);
+  const summary = document.getElementById('dashboard-summary');
+  if (summary) summary.innerHTML = `<div class="summary-tile"><strong>${trips.length}</strong><span>Groups</span></div><div class="summary-tile"><strong>${expenses.length}</strong><span>Expenses</span></div><div class="summary-tile"><strong>₹${total.toFixed(2)}</strong><span>Logged total</span></div>`;
+  const recentRow = expense => `<div class="overview-row"><div><strong>${escapeHtml(expense.title || expense.description || 'Group expense')}</strong><span>${escapeHtml(expense.tripName)}</span></div><strong>${escapeHtml(expense.currency)}${(Number(expense.amount) || 0).toFixed(2)}</strong></div>`;
+  const recentRoot = document.getElementById('dashboard-recent-list');
+  if (recentRoot) recentRoot.innerHTML = recent.length ? recent.map(recentRow).join('') : '<p class="panel-desc overview-empty">No group expenses yet. Your saved activity will appear here.</p>';
+  const history = document.getElementById('history-content');
+  if (history) history.innerHTML = expenses.length ? [...expenses].sort((a, b) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || ''))).map(recentRow).join('') : '<p class="panel-desc overview-empty">No saved transactions yet. Add an expense in Group Ledger to start your history.</p>';
+  const analytics = document.getElementById('analytics-content');
+  if (analytics) {
+    const byGroup = trips.map(trip => ({ name: trip.name, currency: trip.currency || '₹', total: (trip.expenses || []).reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0), count: (trip.expenses || []).length }));
+    analytics.innerHTML = `<div class="dashboard-summary"><div class="summary-tile"><strong>${expenses.length}</strong><span>Recorded expenses</span></div><div class="summary-tile"><strong>₹${total.toFixed(2)}</strong><span>Total recorded</span></div><div class="summary-tile"><strong>${trips.length}</strong><span>Groups tracked</span></div></div>${byGroup.length ? byGroup.map(group => `<div class="overview-row"><div><strong>${escapeHtml(group.name)}</strong><span>${group.count} expenses</span></div><strong>${escapeHtml(group.currency)}${group.total.toFixed(2)}</strong></div>`).join('') : '<p class="panel-desc overview-empty">Group totals will appear here after you record expenses.</p>'}`;
+  }
 }
 
 /* ==========================================================================
