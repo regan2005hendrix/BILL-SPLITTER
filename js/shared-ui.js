@@ -57,18 +57,7 @@ function renderSetupMessage() {
 
 function renderSignedOut() {
   if (headerGoogleButton) headerGoogleButton.hidden = false;
-  root.innerHTML = `
-    <section class="panel" style="margin-bottom: var(--space-lg);">
-      <div class="panel-header"><div><h2 class="panel-title">Shared group ledger</h2><p class="panel-desc">Sign in to join private groups and track verified repayments.</p></div></div>
-      <form id="shared-email-form" class="form-row" style="margin-top: var(--space-sm);">
-        <input id="shared-email" class="input" type="email" required placeholder="you@example.com" style="flex:1;">
-        <button class="key" type="submit">Email me a sign-in link</button>
-      </form>
-    </section>`;
-  root.querySelector('#shared-email-form').addEventListener('submit', async event => {
-    event.preventDefault();
-    await run(() => sendEmailSignInLink(root.querySelector('#shared-email').value), 'Check your email for the secure sign-in link.');
-  });
+  root.innerHTML = '';
 }
 
 function renderPublicPaymentLink(link) {
