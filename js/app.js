@@ -325,14 +325,17 @@ function sharePaymentRequest(request) {
 function renderPublicPaymentRequest(request) {
   const wrapper = document.querySelector('.app-wrapper');
   const currency = request.currency || '₹';
-  const amount = Number(request.amount).toFixed(2);
+  const amount = Number(request.remainingAmount ?? request.amount).toFixed(2);
   const note = request.note || 'Tabby payment request';
+  const details = request.details || note;
+  const source = request.source || 'Payment request';
   wrapper.innerHTML = `
     <main class="view-panel active" style="max-width:620px; margin:var(--space-xl) auto;">
       <section class="panel">
-        <div class="panel-header"><div><p class="panel-desc">TABBY PAYMENT REQUEST</p><h1 class="panel-title">${escapeHtml(request.debtorName)}, your amount is ${escapeHtml(currency)}${escapeHtml(amount)}</h1><p class="panel-desc">Pay ${escapeHtml(request.collectorName)} the exact amount below, then send them the payment notice.</p></div></div>
+        <div class="panel-header"><div><p class="panel-desc">${escapeHtml(source).toUpperCase()} PAYMENT REQUEST</p><h1 class="panel-title">${escapeHtml(request.debtorName)}, your remaining amount is ${escapeHtml(currency)}${escapeHtml(amount)}</h1><p class="panel-desc">Pay ${escapeHtml(request.collectorName)} the exact amount below, then send them the payment notice.</p></div></div>
         <div class="upi-recipient-card" style="margin-top:var(--space-lg)"><div class="upi-avatar-initial">${escapeHtml(request.collectorName.charAt(0).toUpperCase())}</div><div><div style="font-size:var(--text-xs); color:var(--color-muted)">Paying to</div><div style="font-weight:700" id="public-payee">${escapeHtml(request.collectorName)}</div><div class="mono" style="font-size:11px; color:var(--color-accent)">${escapeHtml(request.collectorHandle || 'Payment details unavailable')}</div></div></div>
-        <div class="upi-amount-display"><span style="font-size:var(--text-sm); color:var(--color-muted)">Exact amount</span><strong class="mono" style="font-size:2rem">${escapeHtml(currency)}${escapeHtml(amount)}</strong></div>
+        <div class="upi-amount-display"><span style="font-size:var(--text-sm); color:var(--color-muted)">Remaining to pay</span><strong class="mono" style="font-size:2rem">${escapeHtml(currency)}${escapeHtml(amount)}</strong></div>
+        <div class="section-card" style="margin-top:var(--space-md); padding:var(--space-md)"><strong style="font-size:var(--text-sm)">What this payment covers</strong><p class="panel-desc" style="margin-top:4px">${escapeHtml(details)}</p></div>
         <div id="public-payment-qr" class="qr-container"></div>
         <div class="form-row" style="margin-top:var(--space-md)"><button id="public-open-upi" class="key key--primary" type="button" style="flex:1">Open payment app</button><button id="public-copy-upi" class="key" type="button" style="flex:1">Copy payment link</button></div>
         <button id="public-paid-notice" class="key key--primary" type="button" style="width:100%; margin-top:var(--space-md)">I've paid — notify ${escapeHtml(request.collectorName)}</button>
@@ -340,7 +343,7 @@ function renderPublicPaymentRequest(request) {
       </section>
     </main>`;
   const payment = renderPaymentQRCode(document.getElementById('public-payment-qr'), {
-    handle: request.collectorHandle || '', amount: Number(request.amount), currency, name: request.collectorName, note
+    handle: request.collectorHandle || '', amount: Number(amount), currency, name: request.collectorName, note
   });
   document.getElementById('public-open-upi').addEventListener('click', () => { window.location.href = payment.uri; });
   document.getElementById('public-copy-upi').addEventListener('click', () => navigator.clipboard.writeText(payment.uri).then(() => showToast('Payment link copied.')));
@@ -946,7 +949,11 @@ function renderQuickSplit() {
         });
 
         card.querySelector('.btn-share-request')?.addEventListener('click', () => {
-          sharePaymentRequest({ debtorName: person, collectorName: collector, collectorHandle, amount: sharePerPerson, currency: cur, note: `${person}'s equal bill share` });
+          sharePaymentRequest({
+            source: 'Quick Split', debtorName: person, collectorName: collector, collectorHandle,
+            amount: sharePerPerson, remainingAmount: sharePerPerson, currency: cur,
+            note: `${person}'s equal bill share`, details: `Equal share of this bill with ${quickState.people.length} people.`
+          });
         });
 
         card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
@@ -1068,7 +1075,11 @@ function renderQuickSplit() {
           });
 
           card.querySelector('.btn-share-request')?.addEventListener('click', () => {
-            sharePaymentRequest({ debtorName: p.person, collectorName: collector, collectorHandle, amount: p.total, currency: cur, note: `${p.person}'s bill share` });
+            sharePaymentRequest({
+              source: 'Quick Split', debtorName: p.person, collectorName: collector, collectorHandle,
+              amount: p.total, remainingAmount: p.total, currency: cur,
+              note: `${p.person}'s bill share`, details: `Your dishes: ${p.itemsSummary}. Dishes ${cur}${p.itemsTotal.toFixed(2)}; tax and tip ${cur}${(p.tax + p.tip).toFixed(2)}.`
+            });
           });
 
           card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
@@ -1742,12 +1753,15 @@ function renderGroupLedger() {
 
       card.querySelector('.btn-trip-share-request')?.addEventListener('click', () => {
         sharePaymentRequest({
+          source: 'Group Ledger',
           debtorName: s.from,
           collectorName: s.to,
           collectorHandle: s.handle || '',
           amount: s.amount,
+          remainingAmount: s.amount,
           currency: cur,
-          note: `Trip repayment for ${activeTrip.name}`
+          note: `Trip repayment for ${activeTrip.name}`,
+          details: `${activeTrip.name}: ${s.from} owes ${s.to} for the group's recorded expenses.`
         });
       });
 
