@@ -283,6 +283,74 @@ function showToast(message) {
 }
 
 /* ==========================================================================
+   Shareable payment requests
+   ========================================================================== */
+
+function createPaymentRequestUrl(request) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = `pay-request=${encodeURIComponent(JSON.stringify(request))}`;
+  return url.toString();
+}
+
+function getPaymentRequest() {
+  const prefix = '#pay-request=';
+  if (!window.location.hash.startsWith(prefix)) return null;
+  try {
+    const request = JSON.parse(decodeURIComponent(window.location.hash.slice(prefix.length)));
+    if (!request?.collectorName || !request?.debtorName || !(Number(request.amount) > 0)) return null;
+    return request;
+  } catch {
+    return null;
+  }
+}
+
+function sharePaymentRequest(request) {
+  const amount = `${request.currency || '₹'}${Number(request.amount).toFixed(2)}`;
+  const url = createPaymentRequestUrl(request);
+  const text = `${request.debtorName}, your Tabby payment request is ${amount} to ${request.collectorName}. Pay the exact amount here: ${url}`;
+  if (navigator.share) {
+    navigator.share({ title: `Tabby payment request for ${request.debtorName}`, text, url })
+      .then(() => showToast(`Payment request shared with ${request.debtorName}.`))
+      .catch(error => {
+        if (error?.name !== 'AbortError') navigator.clipboard.writeText(text).then(() => showToast('Payment request copied.'));
+      });
+  } else {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast(`Payment request for ${request.debtorName} copied.`))
+      .catch(() => showToast('Could not copy the payment request.'));
+  }
+}
+
+function renderPublicPaymentRequest(request) {
+  const wrapper = document.querySelector('.app-wrapper');
+  const currency = request.currency || '₹';
+  const amount = Number(request.amount).toFixed(2);
+  const note = request.note || 'Tabby payment request';
+  wrapper.innerHTML = `
+    <main class="view-panel active" style="max-width:620px; margin:var(--space-xl) auto;">
+      <section class="panel">
+        <div class="panel-header"><div><p class="panel-desc">TABBY PAYMENT REQUEST</p><h1 class="panel-title">${escapeHtml(request.debtorName)}, your amount is ${escapeHtml(currency)}${escapeHtml(amount)}</h1><p class="panel-desc">Pay ${escapeHtml(request.collectorName)} the exact amount below, then send them the payment notice.</p></div></div>
+        <div class="upi-recipient-card" style="margin-top:var(--space-lg)"><div class="upi-avatar-initial">${escapeHtml(request.collectorName.charAt(0).toUpperCase())}</div><div><div style="font-size:var(--text-xs); color:var(--color-muted)">Paying to</div><div style="font-weight:700" id="public-payee">${escapeHtml(request.collectorName)}</div><div class="mono" style="font-size:11px; color:var(--color-accent)">${escapeHtml(request.collectorHandle || 'Payment details unavailable')}</div></div></div>
+        <div class="upi-amount-display"><span style="font-size:var(--text-sm); color:var(--color-muted)">Exact amount</span><strong class="mono" style="font-size:2rem">${escapeHtml(currency)}${escapeHtml(amount)}</strong></div>
+        <div id="public-payment-qr" class="qr-container"></div>
+        <div class="form-row" style="margin-top:var(--space-md)"><button id="public-open-upi" class="key key--primary" type="button" style="flex:1">Open payment app</button><button id="public-copy-upi" class="key" type="button" style="flex:1">Copy payment link</button></div>
+        <button id="public-paid-notice" class="key key--primary" type="button" style="width:100%; margin-top:var(--space-md)">I've paid — notify ${escapeHtml(request.collectorName)}</button>
+        <p class="panel-desc" style="margin-top:var(--space-sm)">This prepares a WhatsApp message saying that ${escapeHtml(request.debtorName)} has paid ${escapeHtml(currency)}${escapeHtml(amount)}.</p>
+      </section>
+    </main>`;
+  const payment = renderPaymentQRCode(document.getElementById('public-payment-qr'), {
+    handle: request.collectorHandle || '', amount: Number(request.amount), currency, name: request.collectorName, note
+  });
+  document.getElementById('public-open-upi').addEventListener('click', () => { window.location.href = payment.uri; });
+  document.getElementById('public-copy-upi').addEventListener('click', () => navigator.clipboard.writeText(payment.uri).then(() => showToast('Payment link copied.')));
+  document.getElementById('public-paid-notice').addEventListener('click', () => {
+    const message = `Hi ${request.collectorName}, money paid by ${request.debtorName}: ${currency}${amount} for ${note}. Please check your account.`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  });
+}
+
+/* ==========================================================================
    Modal Helpers
    ========================================================================== */
 
@@ -836,6 +904,7 @@ function renderQuickSplit() {
             <button class="pay-direct-action" type="button" data-person="${escapeHtml(person)}" data-amount="${sharePerPerson}">
               Pay ${escapeHtml(collector)} (${cur}${sharePerPerson.toFixed(2)})
             </button>
+            <button class="key key--sm btn-share-request" type="button">Share link</button>
             <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(person)}" title="Mark as paid without QR">
               Mark Paid
             </button>
@@ -874,6 +943,10 @@ function renderQuickSplit() {
             debtorName: person,
             sourceType: 'quick'
           });
+        });
+
+        card.querySelector('.btn-share-request')?.addEventListener('click', () => {
+          sharePaymentRequest({ debtorName: person, collectorName: collector, collectorHandle, amount: sharePerPerson, currency: cur, note: `${person}'s equal bill share` });
         });
 
         card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
@@ -953,6 +1026,7 @@ function renderQuickSplit() {
               <button class="pay-direct-action" type="button" data-person="${escapeHtml(p.person)}" data-amount="${p.total}">
                 Pay ${escapeHtml(collector)} (${cur}${p.total.toFixed(2)})
               </button>
+            <button class="key key--sm btn-share-request" type="button">Share link</button>
               <button class="btn-quick-mark-paid" type="button" data-person="${escapeHtml(p.person)}" title="Mark as paid without QR">
                 Mark Paid
               </button>
@@ -991,6 +1065,10 @@ function renderQuickSplit() {
               debtorName: p.person,
               sourceType: 'quick'
             });
+          });
+
+          card.querySelector('.btn-share-request')?.addEventListener('click', () => {
+            sharePaymentRequest({ debtorName: p.person, collectorName: collector, collectorHandle, amount: p.total, currency: cur, note: `${p.person}'s bill share` });
           });
 
           card.querySelector('.btn-quick-mark-paid')?.addEventListener('click', () => {
@@ -1629,6 +1707,7 @@ function renderGroupLedger() {
           <div style="display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap;">
             <span class="mono" style="font-weight: 700; font-size: var(--text-base); color: var(--color-accent);">${cur}${s.amount.toFixed(2)}</span>
             <button class="pay-direct-action btn-pay-qr" type="button" title="Show payment QR">Pay ${escapeHtml(s.to)}</button>
+            <button class="key key--sm btn-trip-share-request" type="button">Share link</button>
             <button class="btn-quick-mark-paid btn-trip-mark-paid" type="button" title="Mark as paid directly">Mark Paid</button>
           </div>
         `;
@@ -1658,6 +1737,17 @@ function renderGroupLedger() {
           sourceType: 'trip',
           from: s.from,
           to: s.to
+        });
+      });
+
+      card.querySelector('.btn-trip-share-request')?.addEventListener('click', () => {
+        sharePaymentRequest({
+          debtorName: s.from,
+          collectorName: s.to,
+          collectorHandle: s.handle || '',
+          amount: s.amount,
+          currency: cur,
+          note: `Trip repayment for ${activeTrip.name}`
         });
       });
 
@@ -1906,6 +1996,11 @@ function initPaymentConfirmation() {
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+  const publicPaymentRequest = getPaymentRequest();
+  if (publicPaymentRequest) {
+    renderPublicPaymentRequest(publicPaymentRequest);
+    return;
+  }
   initTheme();
   setupModalClosers();
   initTabs();
